@@ -38,6 +38,9 @@ fn count_value<T: PartialEq>(data: &[T], value: T) -> usize {
     data.iter().filter(|&v| v == &value).count()
 }
 
+/// The answer for the first part is defined as the sum of the differences between the two columns
+/// when sorted.  Technically, it is the least value from each columns, take the difference of each (abs)
+/// and sum them.
 pub fn compute_answer(filename: &str) -> Result<usize> {
     let (mut left, mut right) = read_data::<usize, _>(filename)?;
 
@@ -51,6 +54,8 @@ pub fn compute_answer(filename: &str) -> Result<usize> {
         .sum())
 }
 
+/// The second part takes the left column and multiplies it by the count of the right column values that are equal to the
+/// left column value.  The sum of these values is the answer.
 pub fn compute_answer2(filename: &str) -> Result<usize> {
     let (left, right) = read_data::<usize, _>(filename)?;
 
