@@ -1,46 +1,36 @@
-use std::{error::Error, io::BufRead as _};
-
 use anyhow::Result;
+use std::{error::Error, io::BufRead as _};
 
 // Read a two-column file and return the values as two vectors
 fn read_data<T: std::str::FromStr<Err = E>, E: Error + Send + Sync + 'static>(
     filename: &str,
 ) -> Result<(Vec<T>, Vec<T>)> {
-    let mut data = std::io::BufReader::new(std::fs::File::open(filename)?).lines();
+    // Get a line iterator of the file.
+    let data = std::io::BufReader::new(std::fs::File::open(filename)?).lines();
 
-    return data.try_fold((vec![], vec![]), |(mut left, mut right), line| {
+    // try_fold could be used here, but the complexity of reading and overrules
+    // the user-friendliness of a for loop accumulated into stack vecs.
+    let mut left = vec![];
+    let mut right = vec![];
+    for line in data {
+        // lines can fail to read.
         let line = line?;
-        let mut d = line.split_whitespace().map(|v| v.parse::<T>());
+        // Split the line into words and parse each word into a T.
+        let mut values = line.split_whitespace().map(|v| v.parse::<T>());
+        // Define a closure that will return the next value or an error if there are no more values.
+        let mut next_value = move || {
+            values
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("No value found"))
+        };
 
-        left.push(
-            d.next()
-                .ok_or_else(|| anyhow::anyhow!("No value found for left"))??,
-        );
-        right.push(
-            d.next()
-                .ok_or_else(|| anyhow::anyhow!("No value found for right"))??,
-        );
+        // Push the next two values into the left and right vectors.
+        // next_value has two nested Result types for the parsing and the iterator.
+        left.push(next_value()??);
+        right.push(next_value()??);
+    }
 
-        Ok((left, right))
-    });
-
-    // let mut left = vec![];
-    // let mut right = vec![];
-
-    // for d in data {
-    //     let mut d = d.split_whitespace().map(|v| v.parse::<T>());
-
-    //     left.push(
-    //         d.next()
-    //             .ok_or_else(|| anyhow::anyhow!("No value found for left"))??,
-    //     );
-    //     right.push(
-    //         d.next()
-    //             .ok_or_else(|| anyhow::anyhow!("No value found for right"))??,
-    //     );
-    // }
-
-    // Ok((left, right))
+    Ok((left, right))
 }
 
 /// Counts how many times a value appears in a slice
@@ -54,15 +44,9 @@ pub fn compute_answer(filename: &str) -> Result<usize> {
     left.sort();
     right.sort();
 
-    // let mut sum = 0;
-    // for (l, r) in left.into_iter().zip(right.into_iter()) {
-    //     sum += l.max(r) - l.min(r);
-    // }
-
-    // Ok(sum)
     Ok(left
         .into_iter()
-        .zip(right.into_iter())
+        .zip(right)
         .map(|(l, r)| l.max(r) - l.min(r))
         .sum())
 }
@@ -70,12 +54,6 @@ pub fn compute_answer(filename: &str) -> Result<usize> {
 pub fn compute_answer2(filename: &str) -> Result<usize> {
     let (left, right) = read_data::<usize, _>(filename)?;
 
-    // let mut sum = 0;
-    // for value in left {
-    //     sum += count_value(&right, value) * value;
-    // }
-
-    // Ok(sum)
     Ok(left.into_iter().map(|v| count_value(&right, v) * v).sum())
 }
 
