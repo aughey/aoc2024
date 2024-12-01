@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::{error::Error, io::BufRead as _};
+use std::{collections::HashMap, error::Error, io::BufRead as _};
 
 // Read a two-column file and return the values as two vectors
 fn read_data<T: std::str::FromStr<Err = E>, E: Error + Send + Sync + 'static>(
@@ -59,7 +59,10 @@ pub fn compute_answer(filename: &str) -> Result<usize> {
 pub fn compute_answer2(filename: &str) -> Result<usize> {
     let (left, right) = read_data::<usize, _>(filename)?;
 
-    Ok(left.into_iter().map(|v| count_value(&right, v) * v).sum())
+    let mut cache = HashMap::new();
+    let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(&right, v));
+
+    Ok(left.into_iter().map(|v| counts(v) * v).sum())
 }
 
 #[cfg(test)]
