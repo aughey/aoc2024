@@ -43,7 +43,7 @@ pub fn compute_answer(filename: &str) -> Result<i32> {
     let (mut left, mut right) = read_data(filename)?;
 
     let mut sum = 0;
-    while left.len() > 0 {
+    while !left.is_empty() {
         let l = remove_least(&mut left).unwrap();
         let r = remove_least(&mut right).unwrap();
         sum += l.max(r) - l.min(r);
@@ -53,7 +53,7 @@ pub fn compute_answer(filename: &str) -> Result<i32> {
 }
 
 pub fn compute_answer2(filename: &str) -> Result<usize> {
-    let (mut left, mut right) = read_data(filename)?;
+    let (left, right) = read_data(filename)?;
 
     let mut sum = 0;
     for value in left {
@@ -66,7 +66,7 @@ pub fn compute_answer2(filename: &str) -> Result<usize> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{compute_answer, read_data};
+    use crate::compute_answer;
 
     #[test]
     fn test_sample() {
