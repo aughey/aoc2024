@@ -1,67 +1,82 @@
+use std::{error::Error, io::BufRead as _};
+
 use anyhow::Result;
 
-fn read_data(filename: &str) -> Result<(Vec<i32>, Vec<i32>)> {
-    let data = std::fs::read_to_string(filename)?;
-    let data = data.split('\n');
-    // split on new line
+// Read a two-column file and return the values as two vectors
+fn read_data<T: std::str::FromStr<Err = E>, E: Error + Send + Sync + 'static>(
+    filename: &str,
+) -> Result<(Vec<T>, Vec<T>)> {
+    let mut data = std::io::BufReader::new(std::fs::File::open(filename)?).lines();
 
-    let mut left = vec![];
-    let mut right = vec![];
+    return data.try_fold((vec![], vec![]), |(mut left, mut right), line| {
+        let line = line?;
+        let mut d = line.split_whitespace().map(|v| v.parse::<T>());
 
-    for d in data {
-        let mut d = d.split_whitespace().map(|v| v.parse::<i32>().unwrap());
+        left.push(
+            d.next()
+                .ok_or_else(|| anyhow::anyhow!("No value found for left"))??,
+        );
+        right.push(
+            d.next()
+                .ok_or_else(|| anyhow::anyhow!("No value found for right"))??,
+        );
 
-        left.push(d.next().ok_or_else(|| anyhow::anyhow!("No value found"))?);
-        right.push(d.next().ok_or_else(|| anyhow::anyhow!("No value found"))?);
-    }
+        Ok((left, right))
+    });
 
-    Ok((left, right))
+    // let mut left = vec![];
+    // let mut right = vec![];
+
+    // for d in data {
+    //     let mut d = d.split_whitespace().map(|v| v.parse::<T>());
+
+    //     left.push(
+    //         d.next()
+    //             .ok_or_else(|| anyhow::anyhow!("No value found for left"))??,
+    //     );
+    //     right.push(
+    //         d.next()
+    //             .ok_or_else(|| anyhow::anyhow!("No value found for right"))??,
+    //     );
+    // }
+
+    // Ok((left, right))
 }
 
-fn count_value(data: &[i32], value: i32) -> usize {
-    data.iter().filter(|&&v| v == value).count()
+/// Counts how many times a value appears in a slice
+fn count_value<T: PartialEq>(data: &[T], value: T) -> usize {
+    data.iter().filter(|&v| v == &value).count()
 }
 
-fn remove_least(data: &mut Vec<i32>) -> Option<i32> {
-    if data.is_empty() {
-        return None;
-    }
-    let mut min = data[0];
-    let mut min_index = 0;
+pub fn compute_answer(filename: &str) -> Result<usize> {
+    let (mut left, mut right) = read_data::<usize, _>(filename)?;
 
-    for (i, &v) in data.iter().enumerate() {
-        if v < min {
-            min = v;
-            min_index = i;
-        }
-    }
+    left.sort();
+    right.sort();
 
-    Some(data.remove(min_index))
-}
+    // let mut sum = 0;
+    // for (l, r) in left.into_iter().zip(right.into_iter()) {
+    //     sum += l.max(r) - l.min(r);
+    // }
 
-pub fn compute_answer(filename: &str) -> Result<i32> {
-    let (mut left, mut right) = read_data(filename)?;
-
-    let mut sum = 0;
-    while !left.is_empty() {
-        let l = remove_least(&mut left).unwrap();
-        let r = remove_least(&mut right).unwrap();
-        sum += l.max(r) - l.min(r);
-    }
-
-    Ok(sum)
+    // Ok(sum)
+    Ok(left
+        .into_iter()
+        .zip(right.into_iter())
+        .map(|(l, r)| l.max(r) - l.min(r))
+        .sum())
 }
 
 pub fn compute_answer2(filename: &str) -> Result<usize> {
-    let (left, right) = read_data(filename)?;
+    let (left, right) = read_data::<usize, _>(filename)?;
 
-    let mut sum = 0;
-    for value in left {
-        let count = count_value(&right, value);
-        sum += count * value as usize;
-    }
+    // let mut sum = 0;
+    // for value in left {
+    //     sum += count_value(&right, value) * value;
+    // }
 
-    Ok(sum)
+    // Ok(sum)
+    Ok(left.into_iter().map(|v| count_value(&right, v) * v).sum())
 }
 
 #[cfg(test)]
