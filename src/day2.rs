@@ -27,7 +27,9 @@ impl Report {
     /// Permutates this report by creating an iterator where each
     /// item is a report with one level removed.
     pub fn removed_levels(&self) -> impl Iterator<Item = Report> + '_ {
-        self.0.iter().enumerate().map(move |(i, _)| {
+        // (0..self.0.len()) works too, but this is more explicit that the indicies
+        // had to have come from the container.
+        self.0.iter().enumerate().map(|(i, _)| {
             // Could build new with an iterator, enumerator, and filter that
             // removes the value at the index.  That would save a shift of the
             // values in the vector, but would only be useful for a huge Vec.
