@@ -34,13 +34,13 @@ impl CheckedAdd<usize> for usize {
 }
 
 /// Similar to the sum() function on iterators, but for results.
-pub trait SumResults<T> {
-    fn sum_results(self) -> Result<T>;
+pub trait SumResults<T, E> {
+    fn sum_results(self) -> Result<T, E>;
 }
 
 /// blanket implementation for all iterators of results that add.
 /// This also checks the sum for overflow.
-impl<T, I> SumResults<T> for I
+impl<T, I> SumResults<T, anyhow::Error> for I
 where
     I: Iterator<Item = Result<T>>,
     T: std::ops::Add<Output = T> + Default,
