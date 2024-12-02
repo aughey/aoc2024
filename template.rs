@@ -15,14 +15,14 @@ fn parse(input: &str) -> Result<Data> {
 
 /// Solution to part 1
 #[aoc(day3, part1)]
-fn solve_part1(_input: &Data) -> usize {
-    0
+fn solve_part1(_input: &Data) -> Result<usize> {
+    Ok(0)
 }
 
 /// Solution to part 2
 #[aoc(day3, part2)]
-fn solve_part2(_input: &Data) -> usize {
-    0
+fn solve_part2(_input: &Data) -> Result<usize> {
+    Ok(0)
 }
 
 /// Problem input
@@ -42,12 +42,12 @@ impl FromStr for Data {
 
 /// codspeed compatible function
 pub fn part1(input: &str) -> impl Display {
-    solve_part1(&parse(input).unwrap())
+    solve_part1(&parse(input).unwrap()).unwrap()
 }
 
 /// codspeed compatible function
 pub fn part2(input: &str) -> impl Display {
-    solve_part2(&parse(input).unwrap())
+    solve_part2(&parse(input).unwrap()).unwrap()
 }
 
 #[cfg(test)]
@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn part1_example() {
         assert_eq!(
-            solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()),
+            solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
             0 // CHANGE ME
         );
     }
@@ -68,7 +68,7 @@ mod tests {
     #[test]
     fn part2_example() {
         assert_eq!(
-            solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()),
+            solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
             0 // CHANGE ME
         );
     }

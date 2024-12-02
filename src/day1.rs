@@ -82,7 +82,9 @@ pub fn part2(input: &str) -> usize {
 /// left column value.  The sum of these values is the answer.
 #[aoc(day1, part2)]
 pub fn solve_part2((left, right): &(Vec<i32>, Vec<i32>)) -> Result<usize> {
+    // Create a cache of the counts of the right column values.
     let mut cache = BTreeMap::new();
+    // Create a closure that will check the cache for the count, and generate the count if it is not found.
     let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(right, v));
 
     // Was

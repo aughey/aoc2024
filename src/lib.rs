@@ -46,6 +46,8 @@ where
     T: std::ops::Add<Output = T> + Default,
     T: CheckedAdd<T>,
 {
+    /// Given an iterator of results, sums the inner value of the results and checks for overflow
+    /// of the sum itself.
     fn sum_results(self) -> Result<T> {
         let mut sum = T::default();
         for v in self {
@@ -59,6 +61,7 @@ where
 
 /// Similar to the sum() function on iterators, but will check for overflow of the sum itself.
 pub trait CheckedSum<T> {
+    /// Sums the values in an iterator and checks for overflow of the sum itself.
     fn checked_sum(self) -> Result<T>;
 }
 impl<T, I> CheckedSum<T> for I
