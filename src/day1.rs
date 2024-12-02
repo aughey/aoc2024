@@ -1,20 +1,24 @@
 use anyhow::Result;
-use std::{collections::BTreeMap, error::Error, io::BufRead as _};
+use aoc_runner_derive::{aoc, aoc_generator};
+use std::{collections::BTreeMap, error::Error};
+
+#[aoc_generator(day1)]
+pub fn read_data(input: &str) -> Result<(Vec<usize>, Vec<usize>)> {
+    read_data_generic(input)
+}
 
 // Read a two-column file and return the values as two vectors
-fn read_data<T: std::str::FromStr<Err = E>, E: Error + Send + Sync + 'static>(
-    filename: &str,
+fn read_data_generic<T: std::str::FromStr<Err = E>, E: Error + Send + Sync + 'static>(
+    input: &str,
 ) -> Result<(Vec<T>, Vec<T>)> {
     // Get a line iterator of the file.
-    let data = std::io::BufReader::new(std::fs::File::open(filename)?).lines();
+    let data = input.lines();
 
     // try_fold could be used here, but the complexity of reading and overrules
     // the user-friendliness of a for loop accumulated into stack vecs.
     let mut left = vec![];
     let mut right = vec![];
     for line in data {
-        // lines can fail to read.
-        let line = line?;
         // Split the line into words and parse each word into a T.
         let mut values = line.split_whitespace().map(|v| v.parse::<T>());
         // Define a closure that will return the next value or an error if there are no more values.
@@ -41,42 +45,47 @@ fn count_value<T: PartialEq>(data: &[T], value: T) -> usize {
 /// The answer for the first part is defined as the sum of the differences between the two columns
 /// when sorted.  Technically, it is the least value from each columns, take the difference of each (abs)
 /// and sum them.
-pub fn compute_answer(filename: &str) -> Result<usize> {
-    let (mut left, mut right) = read_data::<usize, _>(filename)?;
+#[aoc(day1, part1)]
+pub fn part1((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
+    let mut left = left.clone();
+    let mut right = right.clone();
 
     left.sort();
     right.sort();
 
-    Ok(left
-        .into_iter()
+    left.into_iter()
         .zip(right)
         .map(|(l, r)| l.max(r) - l.min(r))
-        .sum())
+        .sum()
 }
 
 /// The second part takes the left column and multiplies it by the count of the right column values that are equal to the
 /// left column value.  The sum of these values is the answer.
-pub fn compute_answer2(filename: &str) -> Result<usize> {
-    let (left, right) = read_data::<usize, _>(filename)?;
-
+#[aoc(day1, part2)]
+pub fn part2((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
     //let mut cache = HashMap::new();
     let mut cache = BTreeMap::new();
     let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(&right, v));
 
-    Ok(left.into_iter().map(|v| counts(v) * v).sum())
+    left.into_iter().map(|v| counts(*v) * v).sum()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::compute_answer;
+    use crate::day1::{part1, part2, read_data};
+    use anyhow::Result;
+
+    fn test_data() -> Result<String> {
+        Ok(std::fs::read_to_string("test.txt")?)
+    }
 
     #[test]
     fn test_sample() {
-        assert_eq!(compute_answer("test.txt").unwrap(), 11);
+        assert_eq!(part1(&read_data(&test_data().unwrap()).unwrap()), 11);
     }
 
     #[test]
     fn test_part_2() {
-        assert_eq!(crate::compute_answer2("test.txt").unwrap(), 31);
+        assert_eq!(part2(&read_data(&test_data().unwrap()).unwrap()), 31);
     }
 }
