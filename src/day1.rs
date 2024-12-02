@@ -42,11 +42,16 @@ fn count_value<T: PartialEq>(data: &[T], value: T) -> usize {
     data.iter().filter(|&v| v == &value).count()
 }
 
+pub fn part1(input: &str) -> Result<usize> {
+    let (left, right) = read_data(input)?;
+    Ok(solve_part1(&(left, right)))
+}
+
 /// The answer for the first part is defined as the sum of the differences between the two columns
 /// when sorted.  Technically, it is the least value from each columns, take the difference of each (abs)
 /// and sum them.
 #[aoc(day1, part1)]
-pub fn part1((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
+pub fn solve_part1((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
     let mut left = left.clone();
     let mut right = right.clone();
 
@@ -59,10 +64,15 @@ pub fn part1((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
         .sum()
 }
 
+pub fn part2(input: &str) -> Result<usize> {
+    let (left, right) = read_data(input)?;
+    Ok(solve_part2(&(left, right)))
+}
+
 /// The second part takes the left column and multiplies it by the count of the right column values that are equal to the
 /// left column value.  The sum of these values is the answer.
 #[aoc(day1, part2)]
-pub fn part2((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
+pub fn solve_part2((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
     //let mut cache = HashMap::new();
     let mut cache = BTreeMap::new();
     let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(&right, v));
@@ -72,7 +82,7 @@ pub fn part2((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::day1::{part1, part2, read_data};
+    use crate::day1::{read_data, solve_part1, solve_part2};
     use anyhow::Result;
 
     fn test_data() -> Result<String> {
@@ -81,11 +91,11 @@ mod tests {
 
     #[test]
     fn test_sample() {
-        assert_eq!(part1(&read_data(&test_data().unwrap()).unwrap()), 11);
+        assert_eq!(solve_part1(&read_data(&test_data().unwrap()).unwrap()), 11);
     }
 
     #[test]
     fn test_part_2() {
-        assert_eq!(part2(&read_data(&test_data().unwrap()).unwrap()), 31);
+        assert_eq!(solve_part2(&read_data(&test_data().unwrap()).unwrap()), 31);
     }
 }
