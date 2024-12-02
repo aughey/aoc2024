@@ -16,25 +16,31 @@ fn parse(input: &str) -> Result<Data> {
 /// Solution to part 1
 #[aoc(day3, part1)]
 fn solve_part1(_input: &Data) -> Result<usize> {
+    // XXX: Solving logic for part 1
     Ok(0)
 }
 
 /// Solution to part 2
 #[aoc(day3, part2)]
 fn solve_part2(_input: &Data) -> Result<usize> {
+    // XXX: Solving logic for part 2
     Ok(0)
 }
 
 /// Problem input
 #[derive(Debug)]
 struct Data {
+    // XXX: Change this to the actual data structure
     _len: usize,
 }
 impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        Ok(Data { _len: 0 })
+        // XXX: Do actual parsing here.
+        let s = s.lines();
+        // XXX: Update the returned Data to include the parsed data.
+        Ok(Data { _len: s.count() })
     }
 }
 
@@ -59,7 +65,7 @@ mod tests {
     fn part1_example() {
         assert_eq!(
             solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // CHANGE ME
+            0 // XXX: Update this to the expected value for part 1 sample data.
         );
     }
 
@@ -67,7 +73,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // CHANGE ME
+            0 // XXX: Update this to the expected value for part 2 sample data.
         );
     }
 }
