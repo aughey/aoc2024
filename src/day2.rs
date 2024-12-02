@@ -3,6 +3,8 @@ use std::str::FromStr;
 use anyhow::Result;
 use aoc_runner_derive::{aoc, aoc_generator};
 
+pub const DAY: u32 = 2;
+
 /// A report is a list of integers that represent a series of levels.
 #[derive(Debug)]
 struct Report(Vec<i32>);
@@ -173,20 +175,24 @@ fn solve_part2(input: &Data) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::day2::{parse, solve_part1, solve_part2};
-    use anyhow::Result;
-
-    fn test_data() -> Result<String> {
-        Ok(std::fs::read_to_string("test2.txt")?)
-    }
+    use crate::{
+        day2::{parse, solve_part1, solve_part2},
+        test_data,
+    };
 
     #[test]
     fn part1_example() {
-        assert_eq!(solve_part1(&parse(&test_data().unwrap()).unwrap()), 2);
+        assert_eq!(
+            solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()),
+            2
+        );
     }
 
     #[test]
     fn part2_example() {
-        assert_eq!(solve_part2(&parse(&test_data().unwrap()).unwrap()), 4);
+        assert_eq!(
+            solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()),
+            4
+        );
     }
 }

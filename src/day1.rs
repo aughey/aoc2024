@@ -2,6 +2,8 @@ use anyhow::Result;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{collections::BTreeMap, error::Error};
 
+pub const DAY: u32 = 1;
+
 #[aoc_generator(day1)]
 pub fn read_data(input: &str) -> Result<(Vec<usize>, Vec<usize>)> {
     read_data_generic(input)
@@ -82,20 +84,24 @@ pub fn solve_part2((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::day1::{read_data, solve_part1, solve_part2};
-    use anyhow::Result;
-
-    fn test_data() -> Result<String> {
-        Ok(std::fs::read_to_string("test1.txt")?)
-    }
+    use crate::{
+        day1::{read_data, solve_part1, solve_part2},
+        test_data,
+    };
 
     #[test]
     fn test_sample() {
-        assert_eq!(solve_part1(&read_data(&test_data().unwrap()).unwrap()), 11);
+        assert_eq!(
+            solve_part1(&read_data(&test_data(super::DAY).unwrap()).unwrap()),
+            11
+        );
     }
 
     #[test]
     fn test_part_2() {
-        assert_eq!(solve_part2(&read_data(&test_data().unwrap()).unwrap()), 31);
+        assert_eq!(
+            solve_part2(&read_data(&test_data(super::DAY).unwrap()).unwrap()),
+            31
+        );
     }
 }
