@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, error::Error};
 pub const DAY: u32 = 1;
 
 #[aoc_generator(day1)]
-pub fn read_data(input: &str) -> Result<(Vec<usize>, Vec<usize>)> {
+pub fn read_data(input: &str) -> Result<(Vec<i32>, Vec<i32>)> {
     read_data_generic(input)
 }
 
@@ -44,7 +44,7 @@ fn count_value<T: PartialEq>(data: &[T], value: T) -> usize {
     data.iter().filter(|&v| v == &value).count()
 }
 
-pub fn part1(input: &str) -> Result<usize> {
+pub fn part1(input: &str) -> Result<i32> {
     let (left, right) = read_data(input)?;
     Ok(solve_part1(&(left, right)))
 }
@@ -53,7 +53,7 @@ pub fn part1(input: &str) -> Result<usize> {
 /// when sorted.  Technically, it is the least value from each columns, take the difference of each (abs)
 /// and sum them.
 #[aoc(day1, part1)]
-pub fn solve_part1((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
+pub fn solve_part1((left, right): &(Vec<i32>, Vec<i32>)) -> i32 {
     let mut left = left.clone();
     let mut right = right.clone();
 
@@ -62,7 +62,7 @@ pub fn solve_part1((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
 
     left.into_iter()
         .zip(right)
-        .map(|(l, r)| l.max(r) - l.min(r))
+        .map(|(l, r)| (l - r).abs())
         .sum()
 }
 
@@ -74,12 +74,11 @@ pub fn part2(input: &str) -> Result<usize> {
 /// The second part takes the left column and multiplies it by the count of the right column values that are equal to the
 /// left column value.  The sum of these values is the answer.
 #[aoc(day1, part2)]
-pub fn solve_part2((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
-    //let mut cache = HashMap::new();
+pub fn solve_part2((left, right): &(Vec<i32>, Vec<i32>)) -> usize {
     let mut cache = BTreeMap::new();
     let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(right, v));
 
-    left.iter().map(|v| counts(*v) * v).sum()
+    left.iter().map(|&v| counts(v) * v as usize).sum()
 }
 
 #[cfg(test)]
