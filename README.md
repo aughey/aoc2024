@@ -4,6 +4,8 @@ This year using pattern from https://github.com/gobanos/cargo-aoc?tab=readme-ov-
 
 also running codspeed
 
+test_codspeed.sh script created to quickly validate that the project will work for a given day
+
 template.rs created after day 2.  Current capabilities are:
 
 - day{#}.rs file for each day

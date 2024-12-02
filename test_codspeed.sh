@@ -6,6 +6,7 @@ fi
 
 codspeed=~/Advent/rust-runner
 
+rm $codspeed/input.txt
 cp input/2024/day$1.txt $codspeed/input.txt
 cd $codspeed
 rm Cargo.lock
