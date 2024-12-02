@@ -25,3 +25,14 @@ template.rs created after day 2.  Current capabilities are:
 - tests written for testing against sample input provided
     - uses `lib.rs` defined `test_data` function to read the data.
     - Only the CHANGE ME line needs to be touched to provde the provided sample solution.
+
+# Videos to make
+
+- General
+    - template.rs
+- day1.rs
+    - SumResults
+    - CheckedSum
+- day2.rs
+    - Changing state transition to use diff_direction
+    - Testing diff_direction

@@ -95,6 +95,18 @@ impl State {
         diff.abs() > 3 || diff == 0
     }
 
+    /// Given two levels, determine the direction of the difference.
+    /// Returns None if the difference is bad (> 3 or == 0).
+    /// The ordering is relative to the current, so if it went up, the ordering is greater.
+    fn diff_direction(prev: i32, current: i32) -> Option<std::cmp::Ordering> {
+        let diff = current - prev;
+        if diff.abs() > 3 || diff == 0 {
+            return None;
+        }
+
+        Some((diff).cmp(&0))
+    }
+
     /// Given our current state, compute the next state given the next value.
     pub fn next(self, value: i32) -> Option<State> {
         match self {
@@ -196,5 +208,31 @@ mod tests {
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()),
             4
         );
+    }
+
+    #[test]
+    fn test_diff_direction() {
+        assert_eq!(
+            super::State::diff_direction(1, 2),
+            Some(std::cmp::Ordering::Greater)
+        );
+        assert_eq!(
+            super::State::diff_direction(2, 1),
+            Some(std::cmp::Ordering::Less)
+        );
+        // Right before going bad +-
+        assert_eq!(
+            super::State::diff_direction(0, 3),
+            Some(std::cmp::Ordering::Greater)
+        );
+        assert_eq!(
+            super::State::diff_direction(3, 0),
+            Some(std::cmp::Ordering::Less)
+        );
+        // Two equal
+        assert_eq!(super::State::diff_direction(1, 1), None);
+        // Just +- than 3
+        assert_eq!(super::State::diff_direction(0, 4), None);
+        assert_eq!(super::State::diff_direction(4, 0), None);
     }
 }

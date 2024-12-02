@@ -62,20 +62,19 @@ where
 /// Similar to the sum() function on iterators, but will check for overflow of the sum itself.
 pub trait CheckedSum<T> {
     /// Sums the values in an iterator and checks for overflow of the sum itself.
-    fn checked_sum(self) -> Result<T>;
+    /// Returns None if the sum overflows.
+    fn checked_sum(self) -> Option<T>;
 }
 impl<T, I> CheckedSum<T> for I
 where
     I: Iterator<Item = T>,
     T: std::ops::Add<Output = T> + Default + CheckedAdd<T>,
 {
-    fn checked_sum(self) -> Result<T> {
+    fn checked_sum(self) -> Option<T> {
         let mut sum = T::default();
         for v in self {
-            sum = sum
-                .checked_add(v)
-                .ok_or_else(|| anyhow::anyhow!("add overflowed"))?;
+            sum = sum.checked_add(v)?;
         }
-        Ok(sum)
+        Some(sum)
     }
 }

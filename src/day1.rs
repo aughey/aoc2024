@@ -71,6 +71,7 @@ pub fn solve_part1((left, right): &(Vec<i32>, Vec<i32>)) -> Result<u32> {
         .zip(right)
         .map(|(l, r)| l.abs_diff(r))
         .checked_sum()
+        .ok_or_else(|| anyhow::anyhow!("sum overflowed"))
 }
 
 pub fn part2(input: &str) -> usize {
