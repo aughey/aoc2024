@@ -1,4 +1,5 @@
-use anyhow::Result;
+use crate::Result;
+use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{fmt::Display, str::FromStr};
 
@@ -7,7 +8,7 @@ pub const DAY: u32 = 3;
 /// Parsing logic uses the FromStr trait
 #[aoc_generator(day3)]
 fn parse(input: &str) -> Result<Data> {
-    Data::from_str(input)
+    Data::from_str(input).context("input parsing")
 }
 
 /// Solution to part 1
