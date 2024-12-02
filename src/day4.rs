@@ -2,12 +2,14 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{fmt::Display, str::FromStr};
+use tracing::info;
 
 pub const DAY: u32 = 4;
 
 /// Parsing logic uses the FromStr trait
 #[aoc_generator(day4)]
 fn parse(input: &str) -> Result<Data> {
+    info!("Parsing input");
     Data::from_str(input).context("input parsing")
 }
 
@@ -51,6 +53,7 @@ pub fn part2(input: &str) -> impl Display {
 #[cfg(test)]
 mod tests {
     use crate::test_data;
+    use test_log::test;
 
     use super::*;
 
