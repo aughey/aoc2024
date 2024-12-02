@@ -16,7 +16,7 @@ fn parse(input: &str) -> Result<Data> {
 /// Solution to part 1
 #[aoc(day3, part1)]
 fn solve_part1(_input: &Data) -> usize {
-    0
+    1
 }
 
 /// Solution to part 2

@@ -1,5 +1,9 @@
 # aoc2024
 
+```sh
+RUST_LOG=info cargo watch -x 'nextest r day3 --test-threads 1'
+```
+
 This year using pattern from https://github.com/gobanos/cargo-aoc?tab=readme-ov-file
 
 also running codspeed
