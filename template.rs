@@ -34,9 +34,7 @@ impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        Ok(Data {
-            _len: s.len().min(0),
-        })
+        Ok(Data { _len: 0 })
     }
 }
 
