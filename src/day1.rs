@@ -2,8 +2,14 @@ use anyhow::Result;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{collections::BTreeMap, error::Error};
 
+use crate::{CheckedSum as _, SumResults};
+
 pub const DAY: u32 = 1;
 
+/// Parse the input file into two vectors of i32.
+/// The data type is unspecified
+/// - Using i32 because we want to subtract and take absolute values
+/// - Assume that the input will fit into an i32 with the arithmetic operations
 #[aoc_generator(day1)]
 pub fn read_data(input: &str) -> Result<(Vec<i32>, Vec<i32>)> {
     read_data_generic(input)
@@ -44,16 +50,17 @@ fn count_value<T: PartialEq>(data: &[T], value: T) -> usize {
     data.iter().filter(|&v| v == &value).count()
 }
 
-pub fn part1(input: &str) -> Result<i32> {
-    let (left, right) = read_data(input)?;
-    Ok(solve_part1(&(left, right)))
+/// codspeed compatible function
+pub fn part1(input: &str) -> u32 {
+    let (left, right) = read_data(input).unwrap();
+    solve_part1(&(left, right)).unwrap()
 }
 
 /// The answer for the first part is defined as the sum of the differences between the two columns
 /// when sorted.  Technically, it is the least value from each columns, take the difference of each (abs)
 /// and sum them.
 #[aoc(day1, part1)]
-pub fn solve_part1((left, right): &(Vec<i32>, Vec<i32>)) -> i32 {
+pub fn solve_part1((left, right): &(Vec<i32>, Vec<i32>)) -> Result<u32> {
     let mut left = left.clone();
     let mut right = right.clone();
 
@@ -62,23 +69,30 @@ pub fn solve_part1((left, right): &(Vec<i32>, Vec<i32>)) -> i32 {
 
     left.into_iter()
         .zip(right)
-        .map(|(l, r)| (l - r).abs())
-        .sum()
+        .map(|(l, r)| l.abs_diff(r))
+        .checked_sum()
 }
 
-pub fn part2(input: &str) -> Result<usize> {
-    let (left, right) = read_data(input)?;
-    Ok(solve_part2(&(left, right)))
+pub fn part2(input: &str) -> usize {
+    let (left, right) = read_data(input).unwrap();
+    solve_part2(&(left, right)).unwrap()
 }
 
 /// The second part takes the left column and multiplies it by the count of the right column values that are equal to the
 /// left column value.  The sum of these values is the answer.
 #[aoc(day1, part2)]
-pub fn solve_part2((left, right): &(Vec<i32>, Vec<i32>)) -> usize {
+pub fn solve_part2((left, right): &(Vec<i32>, Vec<i32>)) -> Result<usize> {
     let mut cache = BTreeMap::new();
     let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(right, v));
 
-    left.iter().map(|&v| counts(v) * v as usize).sum()
+    // Was
+    left.iter()
+        .map(|&v| {
+            counts(v)
+                .checked_mul(v as usize)
+                .ok_or_else(|| anyhow::anyhow!("multiply overflowed"))
+        })
+        .sum_results()
 }
 
 #[cfg(test)]
@@ -91,7 +105,7 @@ mod tests {
     #[test]
     fn test_sample() {
         assert_eq!(
-            solve_part1(&read_data(&test_data(super::DAY).unwrap()).unwrap()),
+            solve_part1(&read_data(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
             11
         );
     }
@@ -99,7 +113,7 @@ mod tests {
     #[test]
     fn test_part_2() {
         assert_eq!(
-            solve_part2(&read_data(&test_data(super::DAY).unwrap()).unwrap()),
+            solve_part2(&read_data(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
             31
         );
     }
