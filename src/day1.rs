@@ -75,9 +75,9 @@ pub fn part2(input: &str) -> Result<usize> {
 pub fn solve_part2((left, right): &(Vec<usize>, Vec<usize>)) -> usize {
     //let mut cache = HashMap::new();
     let mut cache = BTreeMap::new();
-    let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(&right, v));
+    let mut counts = move |v| *cache.entry(v).or_insert_with(|| count_value(right, v));
 
-    left.into_iter().map(|v| counts(*v) * v).sum()
+    left.iter().map(|v| counts(*v) * v).sum()
 }
 
 #[cfg(test)]
@@ -86,7 +86,7 @@ mod tests {
     use anyhow::Result;
 
     fn test_data() -> Result<String> {
-        Ok(std::fs::read_to_string("test.txt")?)
+        Ok(std::fs::read_to_string("test1.txt")?)
     }
 
     #[test]
