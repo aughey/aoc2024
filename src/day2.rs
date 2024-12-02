@@ -66,7 +66,7 @@ impl Data {
 fn parse(input: &str) -> Result<Data> {
     let lines = input.lines();
     let reports = lines
-        .map(|l| Report::from_str(l))
+        .map(Report::from_str)
         // Filter out empty reports because our input might be sus.
         .filter(|r| !r.as_ref().is_ok_and(|r| r.0.is_empty()))
         .collect::<Result<Vec<_>>>()?;
