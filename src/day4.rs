@@ -2,22 +2,22 @@ use anyhow::Result;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{fmt::Display, str::FromStr};
 
-pub const DAY: u32 = 3;
+pub const DAY: u32 = 4;
 
 /// Parsing logic uses the FromStr trait
-#[aoc_generator(day3)]
+#[aoc_generator(day4)]
 fn parse(input: &str) -> Result<Data> {
     Data::from_str(input)
 }
 
 /// Solution to part 1
-#[aoc(day3, part1)]
+#[aoc(day4, part1)]
 fn solve_part1(_input: &Data) -> usize {
     0
 }
 
 /// Solution to part 2
-#[aoc(day3, part2)]
+#[aoc(day4, part2)]
 fn solve_part2(_input: &Data) -> usize {
     0
 }

@@ -4,34 +4,37 @@ use std::{fmt::Display, str::FromStr};
 
 pub const DAY: u32 = 3;
 
+/// Parsing logic uses the FromStr trait
+#[aoc_generator(day3)]
+fn parse(input: &str) -> Result<Data> {
+    Data::from_str(input)
+}
+
+/// Solution to part 1
+#[aoc(day3, part1)]
+fn solve_part1(_input: &Data) -> usize {
+    0
+}
+
+/// Solution to part 2
+#[aoc(day3, part2)]
+fn solve_part2(_input: &Data) -> usize {
+    0
+}
+
 /// Problem input
 #[derive(Debug)]
 struct Data {
-    input: String,
+    _len: usize,
 }
 impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         Ok(Data {
-            input: s.to_string(),
+            _len: s.len().min(0),
         })
     }
-}
-
-#[aoc_generator(day3)]
-fn parse(input: &str) -> Result<Data> {
-    Data::from_str(input)
-}
-
-#[aoc(day3, part1)]
-fn solve_part1(input: &Data) -> String {
-    input.input.clone()
-}
-
-#[aoc(day3, part2)]
-fn solve_part2(input: &Data) -> String {
-    input.input.clone()
 }
 
 /// codspeed compatible function
@@ -54,7 +57,7 @@ mod tests {
     fn part1_example() {
         assert_eq!(
             solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()),
-            test_data(super::DAY).unwrap()
+            0 // CHANGE ME
         );
     }
 
@@ -62,7 +65,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()),
-            test_data(super::DAY).unwrap()
+            0 // CHANGE ME
         );
     }
 }
