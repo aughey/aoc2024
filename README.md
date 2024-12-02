@@ -34,5 +34,7 @@ template.rs created after day 2.  Current capabilities are:
     - SumResults
     - CheckedSum
 - day2.rs
+    - Representing State while iterating
+        - State Graph
     - Changing state transition to use diff_direction
     - Testing diff_direction
