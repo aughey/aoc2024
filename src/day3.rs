@@ -15,32 +15,79 @@ fn parse(input: &str) -> Result<Data> {
 
 /// Solution to part 1
 #[aoc(day3, part1)]
-fn solve_part1(_input: &Data) -> Result<usize> {
+fn solve_part1(input: &Data) -> Result<usize> {
     // XXX: Solving logic for part 1
-    Ok(0)
+    Ok(input.numbers.iter().map(|(a, b, _)| a * b).sum())
 }
 
 /// Solution to part 2
 #[aoc(day3, part2)]
-fn solve_part2(_input: &Data) -> Result<usize> {
+fn solve_part2(input: &Data) -> Result<usize> {
     // XXX: Solving logic for part 2
-    Ok(0)
+    Ok(input.numbers_with_dos().map(|(a, b, _)| a * b).sum())
 }
 
 /// Problem input
 #[derive(Debug)]
 struct Data {
     // XXX: Change this to the actual data structure
-    _len: usize,
+    numbers: Vec<(usize, usize, usize)>,
+    dos: Vec<usize>,
+    donts: Vec<usize>,
+}
+impl Data {
+    fn numbers_with_dos(&self) -> impl Iterator<Item = (usize, usize, usize)> + '_ {
+        self.numbers
+            .iter()
+            .filter(|possible| {
+                let pos = possible.2;
+                // index of do before pos
+                let doindex = self.dos.iter().rev().find(|&&d| d < pos);
+                // index of dont before pos
+                let dontindex = self.donts.iter().rev().find(|&&d| d < pos);
+                info!(
+                    "pos: {:?} doindex: {:?}, dontindex: {:?}",
+                    pos, doindex, dontindex
+                );
+                match (doindex, dontindex) {
+                    (Some(d), Some(dont)) => d > dont,
+                    (Some(_), None) => true,
+                    (None, Some(_)) => false,
+                    (None, None) => true,
+                }
+            })
+            .map(|possible| *possible)
+    }
 }
 impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        // XXX: Do actual parsing here.
-        let s = s.lines();
+        // regex that looks for many statements of mul(##,##)
+        let r = regex::Regex::new(r"mul\((\d+),(\d+)\)").unwrap();
+        let doit = regex::Regex::new(r"do()").unwrap();
+        let dont = regex::Regex::new(r"don't()").unwrap();
+        let numbers = r
+            .find_iter(s)
+            .map(|f| {
+                let c = r.captures(f.as_str()).unwrap();
+                (
+                    c.get(1).unwrap().as_str().parse().unwrap(),
+                    c.get(2).unwrap().as_str().parse().unwrap(),
+                    f.start(),
+                )
+            })
+            .collect();
+        let dos = doit.find_iter(s).map(|f| f.start()).collect();
+
+        let donts = dont.find_iter(s).map(|f| f.start()).collect();
+
         // XXX: Update the returned Data to include the parsed data.
-        Ok(Data { _len: s.count() })
+        Ok(Data {
+            numbers,
+            dos,
+            donts,
+        })
     }
 }
 
@@ -65,7 +112,7 @@ mod tests {
     fn part1_example() {
         assert_eq!(
             solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 1 sample data.
+            161
         );
     }
 
@@ -73,7 +120,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 2 sample data.
+            48 // XXX: Update this to the expected value for part 2 sample data.
         );
     }
 }
