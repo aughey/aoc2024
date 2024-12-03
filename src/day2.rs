@@ -8,34 +8,43 @@ pub const DAY: u32 = 2;
 /// A report is a list of integers that represent a series of levels.
 #[derive(Debug)]
 struct Report(Vec<i32>);
-impl Report {
-    /// Returns true if this report is valid given the rules:
-    /// - The difference between each value is less than 3
-    /// - The values are either all increasing or decreasing
-    /// - The values are not all the same
-    pub fn is_valid(&self) -> bool {
-        let mut state = State::Start;
-        for value in &self.0 {
-            state = match state.next(*value) {
-                Some(s) => s,
-                None => return false,
-            }
-        }
-        state.is_directional()
-    }
+impl<'a> IntoIterator for &'a Report {
+    type Item = &'a i32;
+    type IntoIter = std::slice::Iter<'a, i32>;
 
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+/// Returns true if this report is valid given the rules:
+/// - The difference between each value is less than 3
+/// - The values are either all increasing or decreasing
+/// - The values are not all the same
+fn valid_report<'a>(report: impl IntoIterator<Item = &'a i32>) -> bool {
+    let mut state = State::Start;
+    for value in report.into_iter() {
+        state = match state.next(*value) {
+            Some(s) => s,
+            None => return false,
+        }
+    }
+    state.is_directional()
+}
+
+impl Report {
     /// Permutates this report by creating an iterator where each
     /// item is a report with one level removed.
-    pub fn removed_levels(&self) -> impl Iterator<Item = Report> + '_ {
-        // (0..self.0.len()) works too, but this is more explicit that the indicies
-        // had to have come from the container.
-        self.0.iter().enumerate().map(|(i, _)| {
-            // Could build new with an iterator, enumerator, and filter that
-            // removes the value at the index.  That would save a shift of the
-            // values in the vector, but would only be useful for a huge Vec.
-            let mut new = self.0.clone();
-            new.remove(i);
-            Report(new)
+    pub fn removed_levels<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = impl Iterator<Item = &'a i32>> + 'a {
+        let reports = &self.0;
+        (0..reports.len()).map(|i| {
+            reports
+                .iter()
+                .enumerate()
+                .filter(move |(thisi, _v)| *thisi != i)
+                .map(|(_, v)| v)
         })
     }
 }
@@ -59,6 +68,9 @@ impl Data {
     /// that requirement isn't necessarily levied in the problem.
     pub fn new(reports: Vec<Report>) -> Self {
         Self { reports }
+    }
+    pub fn each_report<'a>(&'a self) -> impl Iterator<Item = &'a Report> + 'a {
+        self.reports.iter()
     }
 }
 
@@ -157,7 +169,7 @@ pub fn part2(input: &str) -> Result<usize> {
 /// The first part returns the number of reports that are valid.
 #[aoc(day2, part1)]
 fn solve_part1(input: &Data) -> usize {
-    input.reports.iter().filter(|r| r.is_valid()).count()
+    input.each_report().filter(|&r| valid_report(r)).count()
 }
 
 /// The second part returns the number of reports that are valid, or
@@ -167,7 +179,7 @@ fn solve_part2(input: &Data) -> usize {
     input
         .reports
         .iter()
-        .filter(|r| r.is_valid() || r.removed_levels().any(|r| r.is_valid()))
+        .filter(|&r| valid_report(r) || r.removed_levels().any(|r| valid_report(r)))
         .count()
 }
 
