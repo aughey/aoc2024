@@ -2,7 +2,7 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{fmt::Display, str::FromStr};
-use tracing::info;
+use tracing::{debug, info};
 
 pub const DAY: u32 = 3;
 
@@ -45,18 +45,22 @@ impl Data {
                 let doindex = self.dos.iter().rev().find(|&&d| d < pos);
                 // index of dont before pos
                 let dontindex = self.donts.iter().rev().find(|&&d| d < pos);
-                info!(
+                debug!(
                     "pos: {:?} doindex: {:?}, dontindex: {:?}",
                     pos, doindex, dontindex
                 );
                 match (doindex, dontindex) {
+                    // if there is a do and it is after the last dont
                     (Some(d), Some(dont)) => d > dont,
+                    // if there is a do and no dont
                     (Some(_), None) => true,
+                    // if there is a dont and no do
                     (None, Some(_)) => false,
+                    // if there is no do or dont
                     (None, None) => true,
                 }
             })
-            .map(|possible| *possible)
+            .copied()
     }
 }
 impl FromStr for Data {

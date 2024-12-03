@@ -35,9 +35,7 @@ fn valid_report<'a>(report: impl IntoIterator<Item = &'a i32>) -> bool {
 impl Report {
     /// Permutates this report by creating an iterator where each
     /// item is a report with one level removed.
-    pub fn removed_levels<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = impl Iterator<Item = &'a i32>> + 'a {
+    pub fn removed_levels(&self) -> impl Iterator<Item = impl Iterator<Item = &'_ i32>> + '_ {
         let reports = &self.0;
         (0..reports.len()).map(|i| {
             reports
@@ -69,7 +67,7 @@ impl Data {
     pub fn new(reports: Vec<Report>) -> Self {
         Self { reports }
     }
-    pub fn each_report<'a>(&'a self) -> impl Iterator<Item = &'a Report> + 'a {
+    pub fn each_report(&self) -> impl Iterator<Item = &'_ Report> + '_ {
         self.reports.iter()
     }
 }
@@ -179,7 +177,7 @@ fn solve_part2(input: &Data) -> usize {
     input
         .reports
         .iter()
-        .filter(|&r| valid_report(r) || r.removed_levels().any(|r| valid_report(r)))
+        .filter(|&r| valid_report(r) || r.removed_levels().any(valid_report))
         .count()
 }
 
