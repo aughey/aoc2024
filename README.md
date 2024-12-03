@@ -38,3 +38,4 @@ template.rs created after day 2.  Current capabilities are:
         - State Graph
     - Changing state transition to use diff_direction
     - Testing diff_direction
+    - Using iterator to skip

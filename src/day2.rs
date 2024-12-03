@@ -89,69 +89,53 @@ enum State {
     Decending(i32),
 }
 
-impl State {
-    /// Given a difference between two levels, it's bad if it's 0 or greater than 3.
-    pub fn diff_bad(diff: i32) -> bool {
-        diff.abs() > 3 || diff == 0
-    }
+#[derive(PartialEq, Debug)]
+enum Direction {
+    Assending,
+    Decending,
+}
 
+impl State {
     /// Given two levels, determine the direction of the difference.
     /// Returns None if the difference is bad (> 3 or == 0).
-    /// The ordering is relative to the current, so if it went up, the ordering is greater.
-    fn diff_direction(prev: i32, current: i32) -> Option<std::cmp::Ordering> {
+    /// The ordering is relative to the prev, so if current is > it's assending
+    fn direction(prev: i32, current: i32) -> Option<Direction> {
         let diff = current - prev;
         if diff.abs() > 3 || diff == 0 {
             return None;
         }
 
-        Some((diff).cmp(&0))
+        if diff > 0 {
+            Some(Direction::Assending)
+        } else {
+            Some(Direction::Decending)
+        }
     }
 
     /// Given our current state, compute the next state given the next value.
-    pub fn next(self, value: i32) -> Option<State> {
+    pub fn next(self, current: i32) -> Option<State> {
+        // This match is designed to allow for visual pattern matching to show correct implementation.
         match self {
             // If we're starting, we don't know the direction
-            State::Start => Some(State::Unknown(value)),
+            State::Start => Some(State::Unknown(current)),
             // If we're unknown, we can determine the direction
-            State::Unknown(prev) => {
-                let diff = value - prev;
-                if Self::diff_bad(diff) {
-                    return None;
-                }
-                if diff > 0 {
-                    Some(State::Assending(value))
-                } else {
-                    Some(State::Decending(value))
-                }
-            }
+            State::Unknown(prev) => match Self::direction(prev, current)? {
+                Direction::Assending => Some(State::Assending(current)),
+                Direction::Decending => Some(State::Decending(current)),
+            },
             // Assending or decending, we filter out bad differences and
             // make sure we're traveling in the same direction.
-            State::Assending(prev) => {
-                let diff = value - prev;
-                if Self::diff_bad(diff) {
-                    return None;
-                }
-                if diff > 0 {
-                    Some(State::Assending(value))
-                } else {
-                    // Cannot change direction
-                    None
-                }
-            }
-            State::Decending(prev) => {
-                let diff = value - prev;
-                if Self::diff_bad(diff) {
-                    return None;
-                }
-                if diff < 0 {
-                    Some(State::Decending(value))
-                } else {
-                    // Cannot change direction
-                    None
-                }
-            }
+            State::Assending(prev) => match Self::direction(prev, current)? {
+                Direction::Assending => Some(State::Assending(current)),
+                Direction::Decending => None,
+            },
+            State::Decending(prev) => match Self::direction(prev, current)? {
+                Direction::Assending => None,
+                Direction::Decending => Some(State::Decending(current)),
+            },
         }
     }
+
     /// This state is directional if it's assending or decending.
     pub fn is_directional(&self) -> bool {
         matches!(self, State::Assending(_) | State::Decending(_))
@@ -213,26 +197,26 @@ mod tests {
     #[test]
     fn test_diff_direction() {
         assert_eq!(
-            super::State::diff_direction(1, 2),
-            Some(std::cmp::Ordering::Greater)
+            super::State::direction(1, 2),
+            Some(super::Direction::Assending)
         );
         assert_eq!(
-            super::State::diff_direction(2, 1),
-            Some(std::cmp::Ordering::Less)
+            super::State::direction(2, 1),
+            Some(super::Direction::Decending)
         );
         // Right before going bad +-
         assert_eq!(
-            super::State::diff_direction(0, 3),
-            Some(std::cmp::Ordering::Greater)
+            super::State::direction(0, 3),
+            Some(super::Direction::Assending)
         );
         assert_eq!(
-            super::State::diff_direction(3, 0),
-            Some(std::cmp::Ordering::Less)
+            super::State::direction(3, 0),
+            Some(super::Direction::Decending)
         );
         // Two equal
-        assert_eq!(super::State::diff_direction(1, 1), None);
+        assert_eq!(super::State::direction(1, 1), None);
         // Just +- than 3
-        assert_eq!(super::State::diff_direction(0, 4), None);
-        assert_eq!(super::State::diff_direction(4, 0), None);
+        assert_eq!(super::State::direction(0, 4), None);
+        assert_eq!(super::State::direction(4, 0), None);
     }
 }
