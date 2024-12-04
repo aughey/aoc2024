@@ -2,7 +2,7 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{fmt::Display, str::FromStr};
-use tracing::{debug, info};
+use tracing::info;
 
 pub const DAY: u32 = 4;
 
@@ -35,16 +35,14 @@ fn solve_part1(input: &Data) -> Result<usize> {
         .map(|cell| {
             DIRECTIONS
                 .iter()
+                .copied()
                 // filter directions that have a matching word.
-                .filter(|direction| {
+                .filter(|&direction| {
                     // create an iterator of chars in this direction.
-                    let chars_in_this_direction = (0..WORD.len()).filter_map(|i| {
-                        // Compute x,y of the cell we want to check.
-                        let i = i.try_into().ok()?;
-                        let x = cell.x.checked_add_signed(direction.0.checked_mul(i)?)?;
-                        let y = cell.y.checked_add_signed(direction.1.checked_mul(i)?)?;
-                        cells.get(y)?.get(x).map(|c| c.letter)
-                    });
+                    let chars_in_this_direction = input
+                        .cells_in_direction(cell.xy(), direction)
+                        .map(|c| c.letter)
+                        .take(WORD.len());
                     // A match if the chars in this direction are equal to the word.
                     chars_in_this_direction.eq(WORD.iter().copied())
                 })
@@ -64,20 +62,18 @@ fn solve_part2(input: &Data) -> Result<usize> {
     // Valid words are MAS and SAM
     const WORDS: [[char; 3]; 2] = [['M', 'A', 'S'], ['S', 'A', 'M']];
     // These are the two diagonals we need to check
-    const DELTAS: &[&[(usize, usize)]] = &[&[(0, 0), (1, 1), (2, 2)], &[(0, 2), (1, 1), (2, 0)]];
+    const DIAGONAL_DELTAS: &[&[(isize, isize)]] =
+        &[&[(0, 0), (1, 1), (2, 2)], &[(0, 2), (1, 1), (2, 0)]];
 
     Ok(all_cells
         // At each cell we build the diagonals and check if they are valid words.
         // Filter out any cell that doesn't have a valid X
         .filter(|cell| {
             // Build iterators of chars along the diagonals
-            let mut diagonals_to_test = DELTAS.iter().map(|deltas| {
-                // Build up an iterator of chars along the diagonal
-                deltas.iter().copied().filter_map(|(dx, dy)| {
-                    let x = cell.x.checked_add(dx)?;
-                    let y = cell.y.checked_add(dy)?;
-                    cells.get(y)?.get(x).map(|c| c.letter)
-                })
+            let mut diagonals_to_test = DIAGONAL_DELTAS.iter().map(|deltas| {
+                input
+                    .cells_at_deltas(cell.xy(), deltas.iter().copied())
+                    .map(|c| c.letter)
             });
             // This cell if valid if all of the diagonals match one of the words.
             diagonals_to_test.all(|diagonal| {
@@ -96,6 +92,37 @@ fn solve_part2(input: &Data) -> Result<usize> {
 struct Data {
     cells: Vec<Vec<Cell>>,
 }
+impl Data {
+    pub fn cells_in_direction(
+        &self,
+        (x, y): (usize, usize),
+        (dx, dy): (isize, isize),
+    ) -> impl Iterator<Item = &Cell> + Clone {
+        let deltas = (0..)
+            .map(move |i| {
+                let dx = dx.checked_mul(i)?.try_into().ok()?;
+                let dy = dy.checked_mul(i)?.try_into().ok()?;
+                Some((dx, dy))
+            })
+            .take_while(|c| c.is_some())
+            .map(|c| c.unwrap());
+        self.cells_at_deltas((x, y), deltas)
+    }
+    pub fn cells_at_deltas(
+        &self,
+        (x, y): (usize, usize),
+        deltas: impl Iterator<Item = (isize, isize)> + Clone,
+    ) -> impl Iterator<Item = &Cell> + Clone {
+        deltas
+            .map(move |(dx, dy)| {
+                let x = x.checked_add_signed(dx)?;
+                let y = y.checked_add_signed(dy)?;
+                self.cells.get(y)?.get(x)
+            })
+            .take_while(|c| c.is_some())
+            .map(|c| c.unwrap())
+    }
+}
 
 #[derive(Debug)]
 struct Cell {
@@ -103,6 +130,12 @@ struct Cell {
     pub y: usize,
     pub letter: char,
 }
+impl Cell {
+    pub fn xy(&self) -> (usize, usize) {
+        (self.x, self.y)
+    }
+}
+
 impl FromStr for Data {
     type Err = anyhow::Error;
 
