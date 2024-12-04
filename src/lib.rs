@@ -107,6 +107,9 @@ impl<I> StopMapClone for I
 where
     I: Iterator + Clone,
 {
+    /// Similar to map, but stops the iterator when the closure returns None.
+    /// Will unwrap all the values.
+    /// Equilivant to map + take_while(Option::is_some) + map(Option::unwrap)
     fn stop_map<T, F>(self, f: F) -> impl Iterator<Item = T> + Clone
     where
         F: FnMut(I::Item) -> Option<T> + Clone,
