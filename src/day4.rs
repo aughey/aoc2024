@@ -2,7 +2,7 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{fmt::Display, str::FromStr};
-use tracing::info;
+use tracing::{debug, info};
 
 pub const DAY: u32 = 4;
 
@@ -15,32 +15,111 @@ fn parse(input: &str) -> Result<Data> {
 
 /// Solution to part 1
 #[aoc(day4, part1)]
-fn solve_part1(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 1
-    Ok(0)
+fn solve_part1(input: &Data) -> Result<usize> {
+    const WORD: &[char] = &['X', 'M', 'A', 'S'];
+    const DIRECTIONS: &[(isize, isize)] = &[
+        (0, 1),
+        (1, 0),
+        (1, 1),
+        (0, -1),
+        (-1, 0),
+        (-1, -1),
+        (1, -1),
+        (-1, 1),
+    ];
+
+    let cells = &input.cells;
+    let all_cells = cells.iter().flat_map(|row| row.iter());
+
+    Ok(all_cells
+        .map(|cell| {
+            DIRECTIONS
+                .iter()
+                // filter directions that have a matching word.
+                .filter(|direction| {
+                    // create an iterator of chars in this direction.
+                    let chars_in_this_direction = (0..WORD.len()).filter_map(|i| {
+                        // Compute x,y of the cell we want to check.
+                        let i = i.try_into().ok()?;
+                        let x = cell.x.checked_add_signed(direction.0.checked_mul(i)?)?;
+                        let y = cell.y.checked_add_signed(direction.1.checked_mul(i)?)?;
+                        cells.get(y)?.get(x).map(|c| c.letter)
+                    });
+                    // A match if the chars in this direction are equal to the word.
+                    chars_in_this_direction.eq(WORD.iter().copied())
+                })
+                // Count the number of matches.
+                .count()
+        })
+        // Sum all the matches for all cells.
+        .sum())
 }
 
 /// Solution to part 2
 #[aoc(day4, part2)]
-fn solve_part2(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 2
-    Ok(0)
+fn solve_part2(input: &Data) -> Result<usize> {
+    let cells = &input.cells;
+    let all_cells = cells.iter().flat_map(|row| row.iter());
+
+    // Valid words are MAS and SAM
+    const WORDS: [[char; 3]; 2] = [['M', 'A', 'S'], ['S', 'A', 'M']];
+    // These are the two diagonals we need to check
+    const DELTAS: &[&[(usize, usize)]] = &[&[(0, 0), (1, 1), (2, 2)], &[(0, 2), (1, 1), (2, 0)]];
+
+    Ok(all_cells
+        // At each cell we build the diagonals and check if they are valid words.
+        // Filter out any cell that doesn't have a valid X
+        .filter(|cell| {
+            // Build iterators of chars along the diagonals
+            let mut diagonals_to_test = DELTAS.iter().map(|deltas| {
+                // Build up an iterator of chars along the diagonal
+                deltas.iter().copied().filter_map(|(dx, dy)| {
+                    let x = cell.x.checked_add(dx)?;
+                    let y = cell.y.checked_add(dy)?;
+                    cells.get(y)?.get(x).map(|c| c.letter)
+                })
+            });
+            // This cell if valid if all of the diagonals match one of the words.
+            diagonals_to_test.all(|diagonal| {
+                WORDS
+                    .iter()
+                    // Tests if any word matches the diagonal
+                    .any(|&word| word.iter().copied().eq(diagonal.clone()))
+            })
+        })
+        // Count up all the cells that have a valid X
+        .count())
 }
 
 /// Problem input
 #[derive(Debug)]
 struct Data {
-    // XXX: Change this to the actual data structure
-    _len: usize,
+    cells: Vec<Vec<Cell>>,
+}
+
+#[derive(Debug)]
+struct Cell {
+    pub x: usize,
+    pub y: usize,
+    pub letter: char,
 }
 impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        // XXX: Do actual parsing here.
         let s = s.lines();
-        // XXX: Update the returned Data to include the parsed data.
-        Ok(Data { _len: s.count() })
+
+        let cells = s
+            .enumerate()
+            .map(|(y, line)| {
+                line.chars()
+                    .enumerate()
+                    .map(|(x, letter)| Cell { x, y, letter })
+                    .collect()
+            })
+            .collect();
+
+        Ok(Data { cells })
     }
 }
 
@@ -65,7 +144,7 @@ mod tests {
     fn part1_example() {
         assert_eq!(
             solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 1 sample data.
+            18
         );
     }
 
@@ -73,7 +152,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 2 sample data.
+            9
         );
     }
 }
