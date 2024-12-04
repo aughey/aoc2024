@@ -41,8 +41,8 @@ fn solve_part1(input: &Data) -> Result<usize> {
                     // create an iterator of chars in this direction.
                     let chars_in_this_direction = input
                         .cells_in_direction(cell.xy(), direction)
-                        .map(|c| c.letter)
-                        .take(WORD.len());
+                        .take(WORD.len())
+                        .map(|c| c.letter);
                     // A match if the chars in this direction are equal to the word.
                     chars_in_this_direction.eq(WORD.iter().copied())
                 })
@@ -100,8 +100,8 @@ impl Data {
     ) -> impl Iterator<Item = &Cell> + Clone {
         let deltas = (0..)
             .map(move |i| {
-                let dx = dx.checked_mul(i)?.try_into().ok()?;
-                let dy = dy.checked_mul(i)?.try_into().ok()?;
+                let dx = dx.checked_mul(i)?;
+                let dy = dy.checked_mul(i)?;
                 Some((dx, dy))
             })
             .take_while(|c| c.is_some())
