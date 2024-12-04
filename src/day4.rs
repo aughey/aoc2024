@@ -31,8 +31,12 @@ fn solve_part1(input: &Data) -> Result<usize> {
     let cells = &input.cells;
     let all_cells = cells.iter().flat_map(|row| row.iter());
 
+    let word_to_find = WORD.iter().copied();
+
     Ok(all_cells
+        // Compute a count of the number of times the word appears in each cell in all directions
         .map(|cell| {
+            // Count the number of directions that have the word.
             DIRECTIONS
                 .iter()
                 .copied()
@@ -41,10 +45,12 @@ fn solve_part1(input: &Data) -> Result<usize> {
                     // create an iterator of chars in this direction.
                     let chars_in_this_direction = input
                         .cells_in_direction(cell.xy(), direction)
+                        // Take enough chars to match the word.
                         .take(WORD.len())
+                        // Get the letter of each cell.
                         .map(|c| c.letter);
                     // A match if the chars in this direction are equal to the word.
-                    chars_in_this_direction.eq(WORD.iter().copied())
+                    chars_in_this_direction.eq(word_to_find.clone())
                 })
                 // Count the number of matches.
                 .count()
@@ -93,6 +99,7 @@ struct Data {
     cells: Vec<Vec<Cell>>,
 }
 impl Data {
+    /// Returns an iterator of all the cells starting at (x,y) moving in the direction (dx,dy)
     pub fn cells_in_direction(
         &self,
         (x, y): (usize, usize),
@@ -108,6 +115,9 @@ impl Data {
             .map(|c| c.unwrap());
         self.cells_at_deltas((x, y), deltas)
     }
+
+    /// Returns an iterator of all the cells starting at (x,y) with deltas computed by the provided iterator.
+    /// Stops providing cells when a computed x or y is out of bounds.
     pub fn cells_at_deltas(
         &self,
         (x, y): (usize, usize),
