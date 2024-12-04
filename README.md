@@ -39,3 +39,6 @@ template.rs created after day 2.  Current capabilities are:
     - Changing state transition to use diff_direction
     - Testing diff_direction
     - Using iterator to skip
+- day4.rs
+    - Not using any loops or conditionals
+    - xy computation with bounds and overflow

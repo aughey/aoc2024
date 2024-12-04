@@ -1,4 +1,5 @@
 use crate::Result;
+use crate::StopMapClone;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use std::{fmt::Display, str::FromStr};
@@ -105,32 +106,32 @@ impl Data {
         (x, y): (usize, usize),
         (dx, dy): (isize, isize),
     ) -> impl Iterator<Item = &Cell> + Clone {
-        let deltas = (0..)
-            .map(move |i| {
-                let dx = dx.checked_mul(i)?;
-                let dy = dy.checked_mul(i)?;
-                Some((dx, dy))
-            })
-            .take_while(|c| c.is_some())
-            .map(|c| c.unwrap());
+        // Create an iterator of deltas in the provided direction.
+        let deltas = (0..).stop_map(move |offset| {
+            let dx = dx.checked_mul(offset)?;
+            let dy = dy.checked_mul(offset)?;
+            Some((dx, dy))
+        });
+        // Use our own `cells_at_deltas` function to get the cells.
         self.cells_at_deltas((x, y), deltas)
     }
 
-    /// Returns an iterator of all the cells starting at (x,y) with deltas computed by the provided iterator.
-    /// Stops providing cells when a computed x or y is out of bounds.
+    /// Returns an iterator of all the cells starting at (x,y) with deltas supplied by the provided iterator.
+    /// Stops providing cells when a computed x or y is out of bounds or the iterator runs out of deltas.
     pub fn cells_at_deltas(
         &self,
         (x, y): (usize, usize),
         deltas: impl Iterator<Item = (isize, isize)> + Clone,
     ) -> impl Iterator<Item = &Cell> + Clone {
-        deltas
-            .map(move |(dx, dy)| {
-                let x = x.checked_add_signed(dx)?;
-                let y = y.checked_add_signed(dy)?;
-                self.cells.get(y)?.get(x)
-            })
-            .take_while(|c| c.is_some())
-            .map(|c| c.unwrap())
+        deltas.stop_map(move |(dx, dy)| {
+            // Compute x,y
+            // Heavily lean on ? to stop the iterator when we go out of bounds.
+            let x = x.checked_add_signed(dx)?;
+            let y = y.checked_add_signed(dy)?;
+            self.cells.get(y)?.get(x)
+        })
+        // .take_while(|c| c.is_some())
+        // .map(|c| c.unwrap())
     }
 }
 

@@ -78,3 +78,39 @@ where
         Some(sum)
     }
 }
+
+pub trait StopMap {
+    fn stop_map<T, F>(self, f: F) -> impl Iterator<Item = T>
+    where
+        F: FnMut(Self::Item) -> Option<T>,
+        Self: Iterator;
+}
+pub trait StopMapClone {
+    fn stop_map<T, F>(self, f: F) -> impl Iterator<Item = T> + Clone
+    where
+        F: FnMut(Self::Item) -> Option<T> + Clone,
+        Self: Iterator;
+}
+impl<I> StopMap for I
+where
+    I: Iterator,
+{
+    fn stop_map<T, F>(self, f: F) -> impl Iterator<Item = T>
+    where
+        F: FnMut(I::Item) -> Option<T>,
+    {
+        self.map(f).take_while(|c| c.is_some()).map(|c| c.unwrap())
+    }
+}
+
+impl<I> StopMapClone for I
+where
+    I: Iterator + Clone,
+{
+    fn stop_map<T, F>(self, f: F) -> impl Iterator<Item = T> + Clone
+    where
+        F: FnMut(I::Item) -> Option<T> + Clone,
+    {
+        self.map(f).take_while(|c| c.is_some()).map(|c| c.unwrap())
+    }
+}
