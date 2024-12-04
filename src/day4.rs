@@ -44,7 +44,7 @@ fn solve_part1(input: &Data) -> Result<usize> {
                 .filter(|&direction| {
                     // create an iterator of chars in this direction.
                     let chars_in_this_direction = input
-                        .cells_in_direction(cell.xy(), direction)
+                        .cells_in_direction(cell.xy, direction)
                         // Take enough chars to match the word.
                         .take(WORD.len())
                         // Get the letter of each cell.
@@ -78,7 +78,7 @@ fn solve_part2(input: &Data) -> Result<usize> {
             // Build iterators of chars along the diagonals
             let mut diagonals_to_test = DIAGONAL_DELTAS.iter().map(|deltas| {
                 input
-                    .cells_at_deltas(cell.xy(), deltas.iter().copied())
+                    .cells_at_deltas(cell.xy, deltas.iter().copied())
                     .map(|c| c.letter)
             });
             // This cell if valid if all of the diagonals match one of the words.
@@ -136,14 +136,8 @@ impl Data {
 
 #[derive(Debug)]
 struct Cell {
-    pub x: usize,
-    pub y: usize,
+    pub xy: (usize, usize),
     pub letter: char,
-}
-impl Cell {
-    pub fn xy(&self) -> (usize, usize) {
-        (self.x, self.y)
-    }
 }
 
 impl FromStr for Data {
@@ -157,7 +151,7 @@ impl FromStr for Data {
             .map(|(y, line)| {
                 line.chars()
                     .enumerate()
-                    .map(|(x, letter)| Cell { x, y, letter })
+                    .map(|(x, letter)| Cell { xy: (x, y), letter })
                     .collect()
             })
             .collect();
