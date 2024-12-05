@@ -1,7 +1,10 @@
 use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
-use std::{fmt::Display, str::FromStr};
+use std::{
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 use tracing::info;
 
 pub const DAY: u32 = 5;
@@ -15,32 +18,164 @@ fn parse(input: &str) -> Result<Data> {
 
 /// Solution to part 1
 #[aoc(day5, part1)]
-fn solve_part1(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 1
-    Ok(0)
+fn solve_part1(input: &Data) -> Result<usize> {
+    Ok(input
+        .updates
+        .iter()
+        .filter(|update| input.order_rules.as_slice().validate(update))
+        .map(|update| update[update.len() / 2])
+        .sum())
 }
 
 /// Solution to part 2
 #[aoc(day5, part2)]
-fn solve_part2(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 2
-    Ok(0)
+fn solve_part2(input: &Data) -> Result<usize> {
+    Ok(input
+        .updates
+        .iter()
+        .filter(|update| !input.order_rules.as_slice().validate(update))
+        .map(|update| update.clone())
+        .map(|mut update| {
+            info!("Fixing: {:?}", update);
+            while input.order_rules.as_slice().fix(&mut update) {
+                // Keep fixing until we can't fix anymore.
+            }
+            info!("  is: {:?}", update);
+            update
+        })
+        .map(|update| update[update.len() / 2])
+        .sum())
 }
+
+type PageNumber = usize;
+
+trait UpdateFixer {
+    fn fix(&self, update: &mut Update) -> bool;
+}
+trait UpdateValidator {
+    fn validate(&self, update: &Update) -> bool;
+}
+impl<'a, V> UpdateValidator for &[V]
+where
+    V: UpdateValidator + Debug,
+{
+    fn validate(&self, update: &Update) -> bool {
+        for rule in self.iter() {
+            if !rule.validate(update) {
+                info!("Rule {:?} failed for update {:?}", rule, update);
+                return false;
+            }
+        }
+        return true;
+    }
+}
+impl<'a, V> UpdateFixer for &[V]
+where
+    V: UpdateFixer + Debug,
+{
+    fn fix(&self, update: &mut Update) -> bool {
+        let mut fixed = false;
+        for rule in self.iter() {
+            if rule.fix(update) {
+                fixed = true;
+            }
+        }
+        fixed
+    }
+}
+
+#[derive(Debug)]
+struct OrderRule {
+    first: PageNumber,
+    second: PageNumber,
+}
+impl FromStr for OrderRule {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let mut s = s.split('|');
+        let first = s.next().ok_or_else(|| anyhow::anyhow!("no first page"))?;
+        let second = s.next().ok_or_else(|| anyhow::anyhow!("no second page"))?;
+        Ok(OrderRule {
+            first: first.parse().context("first")?,
+            second: second.parse().context("second")?,
+        })
+    }
+}
+
+impl UpdateValidator for OrderRule {
+    fn validate(&self, update: &Update) -> bool {
+        self.order_validate(update).is_none()
+    }
+}
+impl UpdateFixer for OrderRule {
+    fn fix(&self, update: &mut Update) -> bool {
+        if let Some((first, second)) = self.order_validate(update) {
+            update.swap(first, second);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl OrderRule {
+    fn order_validate(&self, update: &Update) -> Option<(usize, usize)> {
+        let mut seen_second = None;
+        for (index, &page) in update.iter().enumerate() {
+            if page == self.first {
+                if let Some(second) = seen_second {
+                    return Some((index, second));
+                } else {
+                    return None;
+                }
+            }
+            if page == self.second {
+                seen_second = Some(index)
+            }
+        }
+        return None;
+    }
+}
+
+type Update = Vec<PageNumber>;
 
 /// Problem input
 #[derive(Debug)]
 struct Data {
-    // XXX: Change this to the actual data structure
-    _len: usize,
+    order_rules: Vec<OrderRule>,
+    updates: Vec<Update>,
 }
 impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         // XXX: Do actual parsing here.
-        let s = s.lines();
+        let lines = s.lines();
+
+        let mut order_rules = Vec::new();
+
+        for rule in lines {
+            if rule.is_empty() {
+                break;
+            }
+            order_rules.push(OrderRule::from_str(rule)?);
+        }
+        let mut updates = Vec::new();
+        let lines = s.lines().skip(order_rules.len() + 1);
+        for update in lines {
+            let update = update
+                .split(',')
+                .map(|s| s.parse::<PageNumber>().context("update"))
+                .collect::<Result<Update, _>>()?;
+            updates.push(update);
+        }
+
         // XXX: Update the returned Data to include the parsed data.
-        Ok(Data { _len: s.count() })
+        Ok(Data {
+            order_rules,
+            updates,
+        })
     }
 }
 
@@ -65,7 +200,7 @@ mod tests {
     fn part1_example() {
         assert_eq!(
             solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 1 sample data.
+            143
         );
     }
 
@@ -73,7 +208,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 2 sample data.
+            123
         );
     }
 }
