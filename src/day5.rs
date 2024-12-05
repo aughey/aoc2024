@@ -36,11 +36,9 @@ fn solve_part2(input: &Data) -> Result<usize> {
         .filter(|update| !input.order_rules.as_slice().validate(update))
         .map(|update| update.clone())
         .map(|mut update| {
-            info!("Fixing: {:?}", update);
             while input.order_rules.as_slice().fix(&mut update) {
                 // Keep fixing until we can't fix anymore.
             }
-            info!("  is: {:?}", update);
             update
         })
         .map(|update| update[update.len() / 2])
