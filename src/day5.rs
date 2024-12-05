@@ -5,7 +5,7 @@ use std::{
     fmt::{Debug, Display},
     str::FromStr,
 };
-use tracing::info;
+use tracing::{debug, info};
 
 pub const DAY: u32 = 5;
 
@@ -34,8 +34,8 @@ fn solve_part2(input: &Data) -> Result<usize> {
         .updates
         .iter()
         .filter(|update| !input.order_rules.as_slice().validate(update))
-        .map(|update| update.clone())
-        .map(|mut update| {
+        .map(|update| {
+            let mut update = update.clone();
             while input.order_rules.as_slice().fix(&mut update) {
                 // Keep fixing until we can't fix anymore.
             }
@@ -48,25 +48,32 @@ fn solve_part2(input: &Data) -> Result<usize> {
 type PageNumber = usize;
 
 trait UpdateFixer {
+    /// Given an update, fix it in place and return true if any changes were made.
     fn fix(&self, update: &mut Update) -> bool;
 }
 trait UpdateValidator {
+    /// Given an update, return true if it is valid.
     fn validate(&self, update: &Update) -> bool;
 }
+
+/// A nice blanket implementation for slices of validators.
 impl<'a, V> UpdateValidator for &[V]
 where
     V: UpdateValidator + Debug,
 {
     fn validate(&self, update: &Update) -> bool {
+        // If any rule fails, the update is invalid.
         for rule in self.iter() {
             if !rule.validate(update) {
-                info!("Rule {:?} failed for update {:?}", rule, update);
+                debug!("Rule {:?} failed for update {:?}", rule, update);
                 return false;
             }
         }
         return true;
     }
 }
+
+/// Similar blank implementation for slices of fixers.
 impl<'a, V> UpdateFixer for &[V]
 where
     V: UpdateFixer + Debug,
@@ -103,11 +110,14 @@ impl FromStr for OrderRule {
 
 impl UpdateValidator for OrderRule {
     fn validate(&self, update: &Update) -> bool {
+        // Validate uses the order_validation which returns which two page indices are in the wrong order.
+        // Is this returns None, it's valid.
         self.order_validate(update).is_none()
     }
 }
 impl UpdateFixer for OrderRule {
     fn fix(&self, update: &mut Update) -> bool {
+        // If the order is invalid, swap the two pages.
         if let Some((first, second)) = self.order_validate(update) {
             update.swap(first, second);
             true
@@ -118,6 +128,8 @@ impl UpdateFixer for OrderRule {
 }
 
 impl OrderRule {
+    /// Internal method like validate, but returns which two indices are
+    /// in the wrong order.
     fn order_validate(&self, update: &Update) -> Option<(usize, usize)> {
         let mut seen_second = None;
         for (index, &page) in update.iter().enumerate() {
