@@ -2,7 +2,11 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator as _};
-use std::{collections::HashSet, fmt::Display, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    str::FromStr,
+};
 use tracing::info;
 
 pub const DAY: u32 = 6;
@@ -14,8 +18,9 @@ fn parse(input: &str) -> Result<Data> {
     Data::from_str(input).context("input parsing")
 }
 
-fn walk_to_next_cell(
-    cells: &[Vec<Cell>],
+/// Given a grid of cells, a current position, and a direction, return the next cell and position.
+fn get_next_cell<V: AsRef<[Cell]>>(
+    cells: &[V],
     pos: (usize, usize),
     direction: (isize, isize),
 ) -> Option<(&Cell, (usize, usize))> {
@@ -23,7 +28,7 @@ fn walk_to_next_cell(
         pos.0.checked_add_signed(direction.0)?,
         pos.1.checked_add_signed(direction.1)?,
     );
-    let cell = cells.get(next_pos.1).and_then(|row| row.get(next_pos.0))?;
+    let cell = cells.get(next_pos.1)?.as_ref().get(next_pos.0)?;
 
     Some((cell, next_pos))
 }
@@ -31,93 +36,119 @@ fn walk_to_next_cell(
 /// Solution to part 1
 #[aoc(day6, part1)]
 fn solve_part1(input: &Data) -> Result<usize> {
-    let seen = run_part1(input)?.unwrap();
-    let seen_count = seen.iter().flatten().filter(|c| !c.is_empty()).count();
+    let seen: SeenMap = run_part1(input).as_map()?;
+    let seen_count = seen.len();
     Ok(seen_count)
 }
 
-type SeenList = Vec<Vec<HashSet<(isize, isize)>>>;
+/// Points we've seen stored in a HashMap with a HashSet of directions we've seen them in.
+type SeenMap = HashMap<Position, HashSet<Direction>>;
+/// Position is a tuple of x, y
+type Position = (usize, usize);
+/// Direction is a tuple of x, y isizes with +y down
+type Direction = (isize, isize);
 
-fn run_part1(input: &Data) -> Result<Option<SeenList>> {
-    let cells = &input.cells;
-    // create a grid of seen cells with the same size as the input
-    let mut seen: SeenList = input
-        .cells
-        .iter()
-        .map(|row| row.iter().map(|_| Default::default()).collect())
-        .collect();
-
-    let mut pos = input.start_point;
-    let mut direction = (0isize, -1isize);
-    loop {
-        // If we're been at this cell in the same direction, we're in a loop and return none
-        if seen[pos.1][pos.0].contains(&direction) {
-            return Ok(None);
-        }
-
-        // mark out current position
-        seen[pos.1][pos.0].insert(direction);
-
-        // get the cell at the current position
-        if let Some(next) = walk_to_next_cell(cells, pos, direction) {
-            let (next_cell, next_pos) = next;
-            if matches!(next_cell, Cell::Empty) {
+/// Given a grid of cells and a starting position, create an iterator that will walk the map
+/// providing a position and direction of each step.
+fn walk_map<V: AsRef<[Cell]>>(
+    cells: &[V],
+    start_pos: Position,
+) -> impl Iterator<Item = (Position, Direction)> + '_ {
+    // Try to take a step from the current position in the given direction.
+    let try_step = move |(pos, mut direction)| {
+        // You can turn up to 4 times before it's a failure
+        for _ in 0..4 {
+            // See what the next valid cell is in that direction
+            let (next_cell, next_pos) = get_next_cell(cells, pos, direction)?;
+            // If the next cell is empty, we can move there.
+            if next_cell == &Cell::Empty {
                 // move there
-                pos = next_pos;
+                return Some((next_pos, direction));
             } else {
-                // change direction
-                direction = match direction {
-                    (0, 1) => (-1, 0),
-                    (-1, 0) => (0, -1),
-                    (0, -1) => (1, 0),
-                    (1, 0) => (0, 1),
-                    _ => anyhow::bail!("Bad direction"),
-                }
+                // change direction and try again
+                // 90 degree direction change (with y down) is swap x and -y
+                direction = (-direction.1, direction.0);
             }
-        } else {
-            break;
+        }
+        // We've tried all directions and failed, return none
+        None
+    };
+
+    // Start at the start position and go up
+    let mut pos_dir = (start_pos, (0, -1));
+    std::iter::from_fn(move || {
+        // Try to take a step and remember where we are.
+        pos_dir = try_step(pos_dir)?;
+        // We did it, we did it, we did it, yay!
+        Some(pos_dir)
+    })
+}
+
+/// The result of walking the map will either be a loop or we walked off the map.
+#[derive(Debug, Clone, PartialEq)]
+enum WalkResult {
+    Loop,
+    OffMap(SeenMap),
+}
+impl WalkResult {
+    /// If we walked off the map, return the seen map
+    pub fn as_map(self) -> Result<SeenMap> {
+        match self {
+            WalkResult::Loop => Err(anyhow::anyhow!("Loop detected")),
+            WalkResult::OffMap(seen) => Ok(seen),
+        }
+    }
+}
+
+/// Do the operation of running part 1 and return the grid of seen cells
+fn run_part1(input: &Data) -> WalkResult {
+    // Keep track of cells we've been to and the direction we were traveling in that cell.
+    let mut seen = SeenMap::new();
+
+    // Walk the map getting each position and direction of each step.
+    let positions = walk_map(&input.cells, input.start_point);
+    // This is like a reduce operation that can short circuit if we've been to a cell in the same direction
+    for (pos, dir) in positions {
+        let cell_directions = seen.entry(pos).or_default();
+
+        // Insert returns false if this direction is already in the set.
+        // (we've already been in this cell going in the same direction)
+        if false == cell_directions.insert(dir) {
+            //  If we're been at this cell in the same direction, we're in a loop and return none
+            return WalkResult::Loop;
         }
     }
 
-    Ok(Some(seen))
+    // We fell of the edge of the grid, return the seen map
+    WalkResult::OffMap(seen)
 }
 
 /// Solution to part 2
 #[aoc(day6, part2)]
 fn solve_part2(input: &Data) -> Result<usize> {
     // do a walk of the current map
-    let seen = run_part1(input)?.ok_or_else(|| anyhow::anyhow!("No solution for part 1"))?;
-    let walk_locations =
-        seen.iter()
-            .enumerate()
-            .flat_map(|(y, row)| {
-                row.iter().enumerate().filter_map(move |(x, cell)| {
-                    if !cell.is_empty() {
-                        Some((x, y))
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
+    let seen: SeenMap = run_part1(input).as_map()?;
+    // The keys of the seen map are the xy positions we've been to
+    let walk_locations = seen.keys().collect::<Vec<_>>();
 
-    // For each walk location, put an obstical there and try to walk again
+    // For each walk location, put an obstacle there and try to walk again
     let loop_maps = walk_locations.par_iter().filter(|(x, y)| {
+        // Duplicate our map
         let mut cells = input.cells.clone();
         // throw caution to the wind
         cells[*y][*x] = Cell::Filled;
+
+        // If we're in a loop, we'll return true
         run_part1(&Data {
             cells,
             start_point: input.start_point,
-        })
-        .unwrap()
-        .is_none()
+        }) == WalkResult::Loop
     });
 
     Ok(loop_maps.count())
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Cell {
     Empty,
     Filled,
@@ -146,11 +177,14 @@ impl FromStr for Data {
 
     fn from_str(input: &str) -> Result<Self> {
         let s = input.lines();
+        // Parse the cells, mapping each line to a vector of cells
         let cells = s
             .map(|line| line.chars().map(Cell::try_from).collect::<Result<Vec<_>>>())
             .collect::<Result<Vec<_>>>()?;
+
         // Find the start point in a seperate iteration
         let s = input.lines();
+        // Find the x y location of ^ in our input
         let start_point = s
             .enumerate()
             .flat_map(|(y, line)| {
