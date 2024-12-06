@@ -39,9 +39,8 @@ fn solve_part1(input: &Data) -> Result<usize> {
 type SeenList = Vec<Vec<HashSet<(isize, isize)>>>;
 
 fn run_part1(input: &Data) -> Result<Option<SeenList>> {
-    // XXX: Solving logic for part 1
     let cells = &input.cells;
-    // create a grid of seen cells
+    // create a grid of seen cells with the same size as the input
     let mut seen: SeenList = input
         .cells
         .iter()
@@ -138,7 +137,6 @@ impl TryFrom<char> for Cell {
 /// Problem input
 #[derive(Debug)]
 struct Data {
-    // XXX: Change this to the actual data structure
     cells: Vec<Vec<Cell>>,
     start_point: (usize, usize),
 }
@@ -194,7 +192,7 @@ mod tests {
     fn part1_example() {
         assert_eq!(
             solve_part1(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            41 // XXX: Update this to the expected value for part 1 sample data.
+            41
         );
     }
 
@@ -202,7 +200,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            6 // XXX: Update this to the expected value for part 2 sample data.
+            6
         );
     }
 }

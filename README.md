@@ -42,3 +42,5 @@ template.rs created after day 2.  Current capabilities are:
 - day4.rs
     - Not using any loops or conditionals
     - xy computation with bounds and overflow
+- day6.rs
+    - Creating a grid of a different type with the same dimensionality of another.
