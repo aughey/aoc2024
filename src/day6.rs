@@ -19,11 +19,14 @@ fn parse(input: &str) -> Result<Data> {
 }
 
 /// Given a grid of cells, a current position, and a direction, return the next cell and position.
-fn get_next_cell<V: AsRef<[Cell]>>(
+fn get_next_cell<V>(
     cells: &[V],
     pos: (usize, usize),
     direction: (isize, isize),
-) -> Option<(&Cell, (usize, usize))> {
+) -> Option<(&Cell, (usize, usize))>
+where
+    V: AsRef<[Cell]>,
+{
     let next_pos = (
         pos.0.checked_add_signed(direction.0)?,
         pos.1.checked_add_signed(direction.1)?,
@@ -50,10 +53,10 @@ type Direction = (isize, isize);
 
 /// Given a grid of cells and a starting position, create an iterator that will walk the map
 /// providing a position and direction of each step.
-fn walk_map<V: AsRef<[Cell]>>(
-    cells: &[V],
-    start_pos: Position,
-) -> impl Iterator<Item = (Position, Direction)> + '_ {
+fn walk_map<V>(cells: &[V], start_pos: Position) -> impl Iterator<Item = (Position, Direction)> + '_
+where
+    V: AsRef<[Cell]>,
+{
     // Try to take a step from the current position in the given direction.
     let try_step = move |(pos, mut direction)| {
         // You can turn up to 4 times before it's a failure
