@@ -36,7 +36,7 @@ fn get_next_cell<V: AsRef<[Cell]>>(
 /// Solution to part 1
 #[aoc(day6, part1)]
 fn solve_part1(input: &Data) -> Result<usize> {
-    let seen: SeenMap = run_part1(input).as_map()?;
+    let seen: SeenMap = run_part1(input).try_into_map()?;
     let seen_count = seen.len();
     Ok(seen_count)
 }
@@ -92,7 +92,7 @@ enum WalkResult {
 }
 impl WalkResult {
     /// If we walked off the map, return the seen map
-    pub fn as_map(self) -> Result<SeenMap> {
+    pub fn try_into_map(self) -> Result<SeenMap> {
         match self {
             WalkResult::Loop => Err(anyhow::anyhow!("Loop detected")),
             WalkResult::OffMap(seen) => Ok(seen),
@@ -113,7 +113,7 @@ fn run_part1(input: &Data) -> WalkResult {
 
         // Insert returns false if this direction is already in the set.
         // (we've already been in this cell going in the same direction)
-        if false == cell_directions.insert(dir) {
+        if !cell_directions.insert(dir) {
             //  If we're been at this cell in the same direction, we're in a loop and return none
             return WalkResult::Loop;
         }
@@ -127,7 +127,7 @@ fn run_part1(input: &Data) -> WalkResult {
 #[aoc(day6, part2)]
 fn solve_part2(input: &Data) -> Result<usize> {
     // do a walk of the current map
-    let seen: SeenMap = run_part1(input).as_map()?;
+    let seen: SeenMap = run_part1(input).try_into_map()?;
     // The keys of the seen map are the xy positions we've been to
     let walk_locations = seen.keys().collect::<Vec<_>>();
 
