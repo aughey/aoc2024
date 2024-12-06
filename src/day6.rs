@@ -39,12 +39,13 @@ where
 /// Solution to part 1
 #[aoc(day6, part1)]
 fn solve_part1(input: &Data) -> Result<usize> {
-    let seen: SeenMap = run_part1(input).try_into_map()?;
-    let seen_count = seen.len();
-    Ok(seen_count)
+    let seen: SeenMap = run_part1(input)
+        .try_into_seenmap()
+        .ok_or_else(|| anyhow::anyhow!("No seen map found for part 1"))?;
+    Ok(seen.len())
 }
 
-/// Points we've seen stored in a HashMap with a HashSet of directions we've seen them in.
+/// Points we've seen stored in a HashMap with a HashSet of directions we've were facing in that point
 type SeenMap = HashMap<Position, HashSet<Direction>>;
 /// Position is a tuple of x, y
 type Position = (usize, usize);
@@ -94,11 +95,11 @@ enum WalkResult {
     OffMap(SeenMap),
 }
 impl WalkResult {
-    /// If we walked off the map, return the seen map
-    pub fn try_into_map(self) -> Result<SeenMap> {
+    /// If this has a SeenMap component, return the seen map
+    pub fn try_into_seenmap(self) -> Option<SeenMap> {
         match self {
-            WalkResult::Loop => Err(anyhow::anyhow!("Loop detected")),
-            WalkResult::OffMap(seen) => Ok(seen),
+            WalkResult::Loop => None,
+            WalkResult::OffMap(seen) => Some(seen),
         }
     }
 }
@@ -122,7 +123,7 @@ fn run_part1(input: &Data) -> WalkResult {
         }
     }
 
-    // We fell of the edge of the grid, return the seen map
+    // We fell of the edge of the grid, return the seen map of points we've visited
     WalkResult::OffMap(seen)
 }
 
@@ -130,32 +131,39 @@ fn run_part1(input: &Data) -> WalkResult {
 #[aoc(day6, part2)]
 fn solve_part2(input: &Data) -> Result<usize> {
     // do a walk of the current map
-    let seen: SeenMap = run_part1(input).try_into_map()?;
+    let seen: SeenMap = run_part1(input)
+        .try_into_seenmap()
+        .ok_or_else(|| anyhow::anyhow!("No valid walk found for part 2"))?;
     // The keys of the seen map are the xy positions we've been to
     let walk_locations = seen.keys().collect::<Vec<_>>();
 
     // For each walk location, put an obstacle there and try to walk again
-    let loop_maps = walk_locations.par_iter().filter(|(x, y)| {
+    let results_with_obstacle = walk_locations.par_iter().map(|(x, y)| {
         // Duplicate our map
         let mut cells = input.cells.clone();
         // throw caution to the wind
         cells[*y][*x] = Cell::Filled;
 
-        // If we're in a loop, we'll return true
         run_part1(&Data {
             cells,
             start_point: input.start_point,
-        }) == WalkResult::Loop
+        })
     });
+
+    // Only count the number of loops
+    let loop_maps = results_with_obstacle.filter(|result| matches!(result, WalkResult::Loop));
 
     Ok(loop_maps.count())
 }
 
+/// Cell is either empty or filled
 #[derive(Debug, Clone, PartialEq)]
 enum Cell {
     Empty,
     Filled,
 }
+
+/// Create a cell from a character (for parsing)
 impl TryFrom<char> for Cell {
     type Error = anyhow::Error;
 
@@ -171,10 +179,18 @@ impl TryFrom<char> for Cell {
 /// Problem input
 #[derive(Debug)]
 struct Data {
+    /// An xy grid of cells
     cells: Vec<Vec<Cell>>,
+    /// The starting point of the walker
     start_point: (usize, usize),
 }
 
+/// Parse our data from a string blob that looks like:
+/// ```
+/// .#..#
+/// ^....
+/// .#...
+/// ```
 impl FromStr for Data {
     type Err = anyhow::Error;
 
