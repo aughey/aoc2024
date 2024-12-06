@@ -35,6 +35,23 @@ impl CheckedAdd<usize> for usize {
     }
 }
 
+pub trait CountResults<T, E> {
+    fn count_results(self) -> Result<usize, E>;
+}
+impl<T, I> CountResults<T, anyhow::Error> for I
+where
+    I: Iterator<Item = Result<T>>,
+{
+    fn count_results(self) -> Result<usize> {
+        let mut count = 0;
+        for v in self {
+            _ = v?;
+            count += 1;
+        }
+        Ok(count)
+    }
+}
+
 /// Similar to the sum() function on iterators, but for results.
 pub trait SumResults<T, E> {
     fn sum_results(self) -> Result<T, E>;

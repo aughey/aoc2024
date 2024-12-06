@@ -57,7 +57,7 @@ trait UpdateValidator {
 }
 
 /// A nice blanket implementation for slices of validators.
-impl<'a, V> UpdateValidator for &[V]
+impl<V> UpdateValidator for &[V]
 where
     V: UpdateValidator + Debug,
 {
@@ -69,12 +69,12 @@ where
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
 /// Similar blank implementation for slices of fixers.
-impl<'a, V> UpdateFixer for &[V]
+impl<V> UpdateFixer for &[V]
 where
     V: UpdateFixer + Debug,
 {
@@ -144,7 +144,7 @@ impl OrderRule {
                 seen_second = Some(index)
             }
         }
-        return None;
+        None
     }
 }
 
