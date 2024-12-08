@@ -7,6 +7,11 @@ use tracing::info;
 
 pub const DAY: u32 = 8;
 
+trait XY {
+    fn xy(&self) -> &glam::IVec2;
+    fn frequency(&self) -> char;
+}
+
 /// Parsing logic uses the FromStr trait
 #[aoc_generator(day8)]
 fn parse(input: &str) -> Result<Data> {
@@ -19,7 +24,8 @@ fn parse(input: &str) -> Result<Data> {
 fn solve_part1(input: &Data) -> Result<usize> {
     let max_xy = &input.max_xy;
 
-    let antinodes = input.resonate_pairs().flat_map(|(a, b)| {
+    let antinodes = input.resonate_pairs().map(|ab| {
+        let (a, b) = ab?;
         // We skip the first node because it's the same as the second node.
         // We only take 1 node because part one only considers the first antinode.
         let forward_locations = anitnode_generator(a, b).skip(1).take(1);
@@ -31,10 +37,15 @@ fn solve_part1(input: &Data) -> Result<usize> {
         let valid_forward_locations = forward_locations.take_while(on_map);
         let valid_backward_locations = backward_locations.take_while(on_map);
 
-        valid_forward_locations.chain(valid_backward_locations)
+        Ok::<_,anyhow::Error>(valid_forward_locations.chain(valid_backward_locations))
     });
 
-    let antinode_positions = antinodes.map(|node| node.xy).collect::<HashSet<_>>();
+    let mut antinode_positions = HashSet::new();
+    for antinode in antinodes {
+        let antinode = antinode?;
+        antinode_positions.extend(antinode.map(|n| n.xy));
+    }
+    // antinodes.map(|node| Ok(node?.map(|n| n.xy)).collect::<Result<HashSet<_>>>()?;
 
     Ok(antinode_positions.len())
 }
@@ -43,10 +54,10 @@ fn solve_part1(input: &Data) -> Result<usize> {
 /// Given input that looks like `a - b`,
 /// it will generate * nodes `a - * - * - *....`
 /// Includes node b
-fn anitnode_generator(a: &Node, b: &Node) -> impl Iterator<Item = Node> {
-    let diff = b.xy - a.xy;
-    let xy = b.xy;
-    let frequency = b.frequency;
+fn anitnode_generator(a: &impl XY, b: &impl XY) -> impl Iterator<Item = Node> {
+    let diff = b.xy() - a.xy();
+    let xy = *b.xy();
+    let frequency = b.frequency();
     (0..)
         .map(move |i| xy + diff * i)
         .map(move |xy| Node { frequency, xy })
@@ -61,7 +72,8 @@ fn on_map(node: &Node, max_xy: &glam::IVec2) -> bool {
 fn solve_part2(input: &Data) -> Result<usize> {
     let max_xy = &input.max_xy;
 
-    let antinodes = input.resonate_pairs().flat_map(|(a, b)| {
+    let antinodes = input.resonate_pairs().map(|ab| {
+        let (a, b) = ab?;
         let forward_locations = anitnode_generator(a, b);
         let backward_locations = anitnode_generator(b, a);
 
@@ -71,10 +83,14 @@ fn solve_part2(input: &Data) -> Result<usize> {
         let valid_forward_locations = forward_locations.take_while(on_map);
         let valid_backward_locations = backward_locations.take_while(on_map);
 
-        valid_forward_locations.chain(valid_backward_locations)
+        Ok::<_,anyhow::Error>(valid_forward_locations.chain(valid_backward_locations))
     });
 
-    let antinode_positions = antinodes.map(|node| node.xy).collect::<HashSet<_>>();
+    let mut antinode_positions = HashSet::new();
+    for antinode in antinodes {
+        let antinode = antinode?;
+        antinode_positions.extend(antinode.map(|n| n.xy));
+    }
     info!("antinode_positions: {:?}", antinode_positions);
 
     Ok(antinode_positions.len())
@@ -85,53 +101,67 @@ struct Node {
     frequency: char,
     xy: glam::IVec2,
 }
+impl XY for Node {
+    fn xy(&self) -> &glam::IVec2 {
+        &self.xy
+    }
+
+    fn frequency(&self) -> char {
+        self.frequency
+    }
+}
+
+impl XY for &Node {
+    fn xy(&self) -> &glam::IVec2 {
+        &self.xy
+    }
+
+    fn frequency(&self) -> char {
+        self.frequency
+    }
+}
 
 /// Problem input
 #[derive(Debug)]
-struct Data<NI>
-where
-    NI: Iterator<Item = Node>,
+struct Data
 {
-    nodes: NI, //Vec<Node>,
+    nodes: Vec<Node>,
     max_xy: glam::IVec2,
 }
 
 fn pair_combinations<T, IT>(iter: IT) -> impl Iterator<Item = (T, T)>
 where
+T:Clone,    
     IT: Iterator<Item = T> + Clone,
 {
     let mut a = iter;
+    let mut left = a.next();
     let mut b = a.clone();
-    b.next();
     std::iter::from_fn(move || loop {
-        match (a.next(), b.next()) {
-            (Some(left), Some(b)) => return Some((left, b)),
+        match (left.clone(),b.next()) {
+            (Some(left),Some(right)) => return Some((left, right)),
             (Some(_), None) => {
-                a.next();
+                left = Some(a.next()?);
                 b = a.clone();
-                b.next();
             }
-            (None, _) => return None,
+            _ => return None,
         }
     })
 }
 
-impl<NI> Data<NI>
-where
-    NI: Iterator<Item = Node> + Clone,
+impl Data
 {
-    fn resonate_pairs(&self) -> impl Iterator<Item = (Node, Node)> {
-        pair_combinations(self.nodes.clone())
-            // .clone()
-            // .combinations(2)
-            // .map(|pair| (pair[0], pair[1]))
+    fn resonate_pairs(&self) -> impl Iterator<Item = Result<(&Node, &Node)>> {
+//        return pair_combinations(self.nodes.iter()).map(|(a, b)| Ok((a, b)));
+        self.nodes.iter()
+            .combinations(2)
+        .map(|pair| (pair[0], pair[1]))
             .filter(|(a, b)| a.frequency == b.frequency)
+            .map(Ok)
     }
 }
 
-impl<IT> FromStr for Data<IT>
-where
-    IT: Iterator<Item = Node>,
+impl FromStr for Data
 {
     type Err = anyhow::Error;
 
@@ -142,18 +172,18 @@ where
             line.chars()
                 .enumerate()
                 .filter(|(_, c)| c != &'.')
-                .map(move |(x, c)| Node {
+                .map(move |(x, c)| Ok(Node {
                     frequency: c,
-                    xy: glam::IVec2::new(x.try_into().unwrap(), y.try_into().unwrap()),
-                })
+                    xy: glam::IVec2::new(x.try_into()?, y.try_into()?),
+                }))
         });
-        //            .collect::<Result<Vec<_>>>()?;
+                 //   .collect::<Result<Vec<_>>>()?;
 
         let max_y = s.clone().count();
         let max_x = s.clone().next().unwrap().len();
 
         Ok(Data {
-            nodes,
+            nodes: nodes.collect::<Result<Vec<_>>>()?,
             max_xy: glam::IVec2::new(max_x.try_into()?, max_y.try_into()?),
         })
     }
