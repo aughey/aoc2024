@@ -1,7 +1,6 @@
 use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
-use itertools::Itertools as _;
 use std::{collections::HashSet, fmt::Display, str::FromStr};
 use tracing::info;
 
@@ -40,6 +39,8 @@ fn solve_part1(input: &Data) -> Result<usize> {
         Ok::<_, anyhow::Error>(valid_forward_locations.chain(valid_backward_locations))
     });
 
+    // Because of the inner result, we need to unwrap the inner result manually.
+    // There should be a flat_map_results or something similar in the future.
     let mut antinode_positions = HashSet::new();
     for antinode in antinodes {
         let antinode = antinode?;
@@ -156,6 +157,7 @@ impl Data {
                 ab.as_ref()
                     .is_ok_and(|(a, b)| a.frequency() == b.frequency())
             });
+        //use itertools::Itertools as _;
         // self.nodes
         //     .iter()
         //     .combinations(2)
