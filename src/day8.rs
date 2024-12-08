@@ -52,18 +52,24 @@ fn solve_part1(input: &Data) -> Result<usize> {
 }
 
 /// Generates antinodes for a given pair of nodes in the direction of a->b
+///
 /// Given input that looks like `a - b`,
 /// it will generate * nodes `a - * - * - *....`
-/// Includes node b
+/// where * are the new nodes geneated and includes node b.
+///
+/// If you want it in the other direction, call it with `b` and `a` instead.
 fn anitnode_generator(a: &impl XY, b: &impl XY) -> impl Iterator<Item = Node> {
     let diff = b.xy() - a.xy();
     let xy = *b.xy();
     let frequency = b.frequency();
     (0..)
+        // compute the new xy
         .map(move |i| xy + diff * i)
+        // create the new node
         .map(move |xy| Node { frequency, xy })
 }
 
+/// Checks if a node is within the bounds of the map bounds
 fn on_map(node: &Node, max_xy: &glam::IVec2) -> bool {
     node.xy.x >= 0 && node.xy.y >= 0 && node.xy.x < max_xy.x && node.xy.y < max_xy.y
 }
@@ -129,6 +135,8 @@ struct Data {
     max_xy: glam::IVec2,
 }
 
+/// Generates all pairs of a given iterator.
+/// This is equivalent to `iter.combinations(2)`.
 fn pair_combinations<T, IT>(iter: IT) -> impl Iterator<Item = (T, T)>
 where
     T: Clone,
