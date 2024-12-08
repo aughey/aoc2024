@@ -8,7 +8,7 @@ pub const DAY: u32 = 8;
 #[aoc(day8, part1)]
 fn solve_part1(input: &str) -> Result<usize> {
     let input = Data::from_str(input)?;
-    //let input = DataNoStd::new(input);
+    //let input = DataNoStd:j:new(input);
     day8_impl::solve_part1_impl(&input)
 }
 
@@ -35,13 +35,6 @@ impl DataShape for Data {
                 ab.as_ref()
                     .is_ok_and(|(a, b)| a.frequency() == b.frequency())
             });
-        //use itertools::Itertools as _;
-        // self.nodes
-        //     .iter()
-        //     .combinations(2)
-        //     .map(|pair| (pair[0], pair[1]))
-        //     .filter(|(a, b)| a.frequency == b.frequency)
-        //     .map(Ok)
     }
 
     fn max_xy(&self) -> Result<glam::IVec2> {
