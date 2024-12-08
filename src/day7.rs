@@ -2,10 +2,7 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::{aoc, aoc_generator};
 use itertools::Itertools as _;
-use rayon::{
-    iter::{IntoParallelRefIterator, ParallelIterator as _},
-    result, vec,
-};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator as _};
 use std::{fmt::Display, str::FromStr};
 use tracing::info;
 
@@ -98,7 +95,7 @@ impl FromStr for Equation {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut s = s.split(":");
+        let mut s = s.split(':');
         let result = s
             .next()
             .ok_or_else(|| anyhow::anyhow!("No result"))?

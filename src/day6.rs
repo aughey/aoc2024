@@ -186,7 +186,7 @@ struct Data {
 }
 
 /// Parse our data from a string blob that looks like:
-/// ```
+/// ```pre
 /// .#..#
 /// ^....
 /// .#...
