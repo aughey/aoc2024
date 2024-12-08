@@ -8,6 +8,7 @@ pub const DAY: u32 = 8;
 #[aoc(day8, part1)]
 fn solve_part1(input: &str) -> Result<usize> {
     let input = Data::from_str(input)?;
+    //let input = DataNoStd::new(input);
     day8_impl::solve_part1_impl(&input)
 }
 
@@ -15,6 +16,7 @@ fn solve_part1(input: &str) -> Result<usize> {
 #[aoc(day8, part2)]
 fn solve_part2(input: &str) -> Result<usize> {
     let input = Data::from_str(input)?;
+    //let input = DataNoStd::new(input);
     day8_impl::solve_part2_impl(&input)
 }
 
