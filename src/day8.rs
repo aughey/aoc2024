@@ -17,22 +17,15 @@ fn parse(input: &str) -> Result<Data> {
 /// Solution to part 1
 #[aoc(day8, part1)]
 fn solve_part1(input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 1
-    let nodes = &input.nodes;
     let max_xy = &input.max_xy;
 
-    let pairs = nodes
-        .iter()
-        .combinations(2)
-        .map(|pair| (pair[0], pair[1]))
-        .filter(|(a, b)| a.frequency == b.frequency);
-    let antinodes = pairs.flat_map(|(a, b)| {
+    let antinodes = input.resonate_pairs().flat_map(|(a, b)| {
         // We skip the first node because it's the same as the second node.
         // We only take 1 node because part one only considers the first antinode.
         let forward_locations = anitnode_generator(a, b).skip(1).take(1);
         let backward_locations = anitnode_generator(b, a).skip(1).take(1);
 
-        // neat little trick
+        // neat little trick to capture max_xy so take_while looks clean
         let on_map = |node: &Node| on_map(node, max_xy);
 
         let valid_forward_locations = forward_locations.take_while(on_map);
@@ -47,6 +40,8 @@ fn solve_part1(input: &Data) -> Result<usize> {
 }
 
 /// Generates antinodes for a given pair of nodes in the direction of a->b
+/// Given input that looks like `a - b`,
+/// it will generate * nodes `a - * - * - *....`
 /// Includes node b
 fn anitnode_generator(a: &Node, b: &Node) -> impl Iterator<Item = Node> {
     let diff = b.xy - a.xy;
@@ -64,16 +59,9 @@ fn on_map(node: &Node, max_xy: &glam::IVec2) -> bool {
 /// Solution to part 2
 #[aoc(day8, part2)]
 fn solve_part2(input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 1
-    let nodes = &input.nodes;
     let max_xy = &input.max_xy;
 
-    let pairs = nodes
-        .iter()
-        .combinations(2)
-        .map(|pair| (pair[0], pair[1]))
-        .filter(|(a, b)| a.frequency == b.frequency);
-    let antinodes = pairs.flat_map(|(a, b)| {
+    let antinodes = input.resonate_pairs().flat_map(|(a, b)| {
         let forward_locations = anitnode_generator(a, b);
         let backward_locations = anitnode_generator(b, a);
 
@@ -104,6 +92,17 @@ struct Data {
     nodes: Vec<Node>,
     max_xy: glam::IVec2,
 }
+
+impl Data {
+    fn resonate_pairs(&self) -> impl Iterator<Item = (&Node, &Node)> {
+        self.nodes
+            .iter()
+            .combinations(2)
+            .map(|pair| (pair[0], pair[1]))
+            .filter(|(a, b)| a.frequency == b.frequency)
+    }
+}
+
 impl FromStr for Data {
     type Err = anyhow::Error;
 
