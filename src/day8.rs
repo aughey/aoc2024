@@ -20,15 +20,15 @@ fn parse(input: &str) -> Result<Data> {
 
 /// Solution to part 1
 #[aoc(day8, part1)]
-fn solve_part1(input: &Data) -> Result<usize> {
-    let max_xy = &input.max_xy;
+fn solve_part1(input: &impl DataShape) -> Result<usize> {
+    let max_xy = &input.max_xy();
 
     let antinodes = input.resonate_pairs().map(|ab| {
         let (a, b) = ab?;
         // We skip the first node because it's the same as the second node.
         // We only take 1 node because part one only considers the first antinode.
-        let forward_locations = anitnode_generator(a, b).skip(1).take(1);
-        let backward_locations = anitnode_generator(b, a).skip(1).take(1);
+        let forward_locations = anitnode_generator(&a, &b).skip(1).take(1);
+        let backward_locations = anitnode_generator(&b, &a).skip(1).take(1);
 
         // neat little trick to capture max_xy so take_while looks clean
         let on_map = |node: &Node| on_map(node, max_xy);
@@ -76,13 +76,13 @@ fn on_map(node: &Node, max_xy: &glam::IVec2) -> bool {
 
 /// Solution to part 2
 #[aoc(day8, part2)]
-fn solve_part2(input: &Data) -> Result<usize> {
-    let max_xy = &input.max_xy;
+fn solve_part2(input: &impl DataShape) -> Result<usize> {
+    let max_xy = &input.max_xy();
 
     let antinodes = input.resonate_pairs().map(|ab| {
         let (a, b) = ab?;
-        let forward_locations = anitnode_generator(a, b);
-        let backward_locations = anitnode_generator(b, a);
+        let forward_locations = anitnode_generator(&a, &b);
+        let backward_locations = anitnode_generator(&b, &a);
 
         // neat little trick
         let on_map = |node: &Node| on_map(node, max_xy);
@@ -157,8 +157,24 @@ where
     })
 }
 
-impl Data {
-    fn resonate_pairs(&self) -> impl Iterator<Item = Result<(&Node, &Node)>> {
+trait DataShape {
+    type RPNODE<'a>: XY
+    where
+        Self: 'a;
+    fn resonate_pairs<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = Result<(Self::RPNODE<'a>, Self::RPNODE<'a>)>> + 'a;
+
+    fn max_xy(&self) -> glam::IVec2;
+}
+
+impl DataShape for Data {
+    type RPNODE<'a>
+        = &'a Node
+    where
+        Self: 'a;
+    fn resonate_pairs<'a>(&'a self) -> impl Iterator<Item = Result<(&'a Node, &'a Node)>> + 'a {
+        // impl Iterator<Item = Result<(&Node, &Node)>> {
         return pair_combinations(self.nodes.iter())
             .map(|(a, b)| Ok((a, b)))
             .filter(|ab| {
@@ -172,6 +188,10 @@ impl Data {
         //     .map(|pair| (pair[0], pair[1]))
         //     .filter(|(a, b)| a.frequency == b.frequency)
         //     .map(Ok)
+    }
+
+    fn max_xy(&self) -> glam::IVec2 {
+        self.max_xy
     }
 }
 
