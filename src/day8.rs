@@ -27,29 +27,38 @@ fn solve_part1(input: &Data) -> Result<usize> {
         .map(|pair| (pair[0], pair[1]))
         .filter(|(a, b)| a.frequency == b.frequency);
     let antinodes = pairs.flat_map(|(a, b)| {
-        let freq = a.frequency;
-        let diff = a.xy - b.xy;
-        let forward_xy = a.xy + diff;
-        let backward_xy = b.xy - diff;
-        [
-            Node {
-                frequency: freq,
-                xy: forward_xy,
-            },
-            Node {
-                frequency: freq,
-                xy: backward_xy,
-            },
-        ]
-        .into_iter()
-        .filter(|node| {
-            node.xy.x >= 0 && node.xy.y >= 0 && node.xy.x < max_xy.x && node.xy.y < max_xy.y
-        })
+        // We skip the first node because it's the same as the second node.
+        // We only take 1 node because part one only considers the first antinode.
+        let forward_locations = anitnode_generator(a, b).skip(1).take(1);
+        let backward_locations = anitnode_generator(b, a).skip(1).take(1);
+
+        // neat little trick
+        let on_map = |node: &Node| on_map(node, max_xy);
+
+        let valid_forward_locations = forward_locations.take_while(on_map);
+        let valid_backward_locations = backward_locations.take_while(on_map);
+
+        valid_forward_locations.chain(valid_backward_locations)
     });
 
     let antinode_positions = antinodes.map(|node| node.xy).collect::<HashSet<_>>();
 
     Ok(antinode_positions.len())
+}
+
+/// Generates antinodes for a given pair of nodes in the direction of a->b
+/// Includes node b
+fn anitnode_generator(a: &Node, b: &Node) -> impl Iterator<Item = Node> {
+    let diff = b.xy - a.xy;
+    let xy = b.xy;
+    let frequency = b.frequency;
+    (0..)
+        .map(move |i| xy + diff * i)
+        .map(move |xy| Node { frequency, xy })
+}
+
+fn on_map(node: &Node, max_xy: &glam::IVec2) -> bool {
+    node.xy.x >= 0 && node.xy.y >= 0 && node.xy.x < max_xy.x && node.xy.y < max_xy.y
 }
 
 /// Solution to part 2
@@ -65,23 +74,16 @@ fn solve_part2(input: &Data) -> Result<usize> {
         .map(|pair| (pair[0], pair[1]))
         .filter(|(a, b)| a.frequency == b.frequency);
     let antinodes = pairs.flat_map(|(a, b)| {
-        let freq = a.frequency;
-        let diff = a.xy - b.xy;
-        let xy = a.xy;
+        let forward_locations = anitnode_generator(a, b);
+        let backward_locations = anitnode_generator(b, a);
 
-        let forward_locations = (0..).map(move |i| xy + diff * i);
-        let backward_locations = (0..).map(move |i| xy - diff * i);
+        // neat little trick
+        let on_map = |node: &Node| on_map(node, max_xy);
 
-        let valid_forward_locations = forward_locations
-            .take_while(|xy| xy.x >= 0 && xy.y >= 0 && xy.x < max_xy.x && xy.y < max_xy.y);
-        let valid_backward_locations = backward_locations
-            .take_while(|xy| xy.x >= 0 && xy.y >= 0 && xy.x < max_xy.x && xy.y < max_xy.y);
+        let valid_forward_locations = forward_locations.take_while(on_map);
+        let valid_backward_locations = backward_locations.take_while(on_map);
 
-        let locations = valid_forward_locations.chain(valid_backward_locations);
-        locations.map(move |xy| Node {
-            frequency: freq,
-            xy,
-        })
+        valid_forward_locations.chain(valid_backward_locations)
     });
 
     let antinode_positions = antinodes.map(|node| node.xy).collect::<HashSet<_>>();
