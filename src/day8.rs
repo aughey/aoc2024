@@ -37,7 +37,7 @@ fn solve_part1(input: &Data) -> Result<usize> {
         let valid_forward_locations = forward_locations.take_while(on_map);
         let valid_backward_locations = backward_locations.take_while(on_map);
 
-        Ok::<_,anyhow::Error>(valid_forward_locations.chain(valid_backward_locations))
+        Ok::<_, anyhow::Error>(valid_forward_locations.chain(valid_backward_locations))
     });
 
     let mut antinode_positions = HashSet::new();
@@ -83,7 +83,7 @@ fn solve_part2(input: &Data) -> Result<usize> {
         let valid_forward_locations = forward_locations.take_while(on_map);
         let valid_backward_locations = backward_locations.take_while(on_map);
 
-        Ok::<_,anyhow::Error>(valid_forward_locations.chain(valid_backward_locations))
+        Ok::<_, anyhow::Error>(valid_forward_locations.chain(valid_backward_locations))
     });
 
     let mut antinode_positions = HashSet::new();
@@ -123,23 +123,22 @@ impl XY for &Node {
 
 /// Problem input
 #[derive(Debug)]
-struct Data
-{
+struct Data {
     nodes: Vec<Node>,
     max_xy: glam::IVec2,
 }
 
 fn pair_combinations<T, IT>(iter: IT) -> impl Iterator<Item = (T, T)>
 where
-T:Clone,    
+    T: Clone,
     IT: Iterator<Item = T> + Clone,
 {
     let mut a = iter;
     let mut left = a.next();
     let mut b = a.clone();
     std::iter::from_fn(move || loop {
-        match (left.clone(),b.next()) {
-            (Some(left),Some(right)) => return Some((left, right)),
+        match (left.clone(), b.next()) {
+            (Some(left), Some(right)) => return Some((left, right)),
             (Some(_), None) => {
                 left = Some(a.next()?);
                 b = a.clone();
@@ -149,20 +148,24 @@ T:Clone,
     })
 }
 
-impl Data
-{
+impl Data {
     fn resonate_pairs(&self) -> impl Iterator<Item = Result<(&Node, &Node)>> {
-//        return pair_combinations(self.nodes.iter()).map(|(a, b)| Ok((a, b)));
-        self.nodes.iter()
-            .combinations(2)
-        .map(|pair| (pair[0], pair[1]))
-            .filter(|(a, b)| a.frequency == b.frequency)
-            .map(Ok)
+        return pair_combinations(self.nodes.iter())
+            .map(|(a, b)| Ok((a, b)))
+            .filter(|ab| {
+                ab.as_ref()
+                    .is_ok_and(|(a, b)| a.frequency() == b.frequency())
+            });
+        // self.nodes
+        //     .iter()
+        //     .combinations(2)
+        //     .map(|pair| (pair[0], pair[1]))
+        //     .filter(|(a, b)| a.frequency == b.frequency)
+        //     .map(Ok)
     }
 }
 
-impl FromStr for Data
-{
+impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
@@ -172,12 +175,14 @@ impl FromStr for Data
             line.chars()
                 .enumerate()
                 .filter(|(_, c)| c != &'.')
-                .map(move |(x, c)| Ok(Node {
-                    frequency: c,
-                    xy: glam::IVec2::new(x.try_into()?, y.try_into()?),
-                }))
+                .map(move |(x, c)| {
+                    Ok(Node {
+                        frequency: c,
+                        xy: glam::IVec2::new(x.try_into()?, y.try_into()?),
+                    })
+                })
         });
-                 //   .collect::<Result<Vec<_>>>()?;
+        //   .collect::<Result<Vec<_>>>()?;
 
         let max_y = s.clone().count();
         let max_x = s.clone().next().unwrap().len();
@@ -220,5 +225,11 @@ mod tests {
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
             34
         );
+    }
+
+    #[test]
+    fn test_pair_combinators() {
+        let res = super::pair_combinations([0, 1, 2, 3].into_iter()).collect::<Vec<_>>();
+        assert_eq!(res, vec![(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)])
     }
 }
