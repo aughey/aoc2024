@@ -88,46 +88,69 @@ struct Node {
 
 /// Problem input
 #[derive(Debug)]
-struct Data {
-    nodes: Vec<Node>,
+struct Data<NI>
+where
+    NI: Iterator<Item = Node>,
+{
+    nodes: NI, //Vec<Node>,
     max_xy: glam::IVec2,
 }
 
-impl Data {
-    fn resonate_pairs(&self) -> impl Iterator<Item = (&Node, &Node)> {
-        self.nodes
-            .iter()
-            .combinations(2)
-            .map(|pair| (pair[0], pair[1]))
+fn pair_combinations<T, IT>(iter: IT) -> impl Iterator<Item = (T, T)>
+where
+    IT: Iterator<Item = T> + Clone,
+{
+    let mut a = iter;
+    let mut b = a.clone();
+    b.next();
+    std::iter::from_fn(move || loop {
+        match (a.next(), b.next()) {
+            (Some(left), Some(b)) => return Some((left, b)),
+            (Some(_), None) => {
+                a.next();
+                b = a.clone();
+                b.next();
+            }
+            (None, _) => return None,
+        }
+    })
+}
+
+impl<NI> Data<NI>
+where
+    NI: Iterator<Item = Node> + Clone,
+{
+    fn resonate_pairs(&self) -> impl Iterator<Item = (Node, Node)> {
+        pair_combinations(self.nodes.clone())
+            // .clone()
+            // .combinations(2)
+            // .map(|pair| (pair[0], pair[1]))
             .filter(|(a, b)| a.frequency == b.frequency)
     }
 }
 
-impl FromStr for Data {
+impl<IT> FromStr for Data<IT>
+where
+    IT: Iterator<Item = Node>,
+{
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         let s = s.lines();
 
-        let nodes = s
-            .clone()
-            .enumerate()
-            .flat_map(|(y, line)| {
-                line.chars()
-                    .enumerate()
-                    .filter(|(_, c)| c != &'.')
-                    .map(move |(x, c)| {
-                        Ok(Node {
-                            frequency: c,
-                            xy: glam::IVec2::new(x.try_into()?, y.try_into()?),
-                        })
-                    })
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let nodes = s.clone().enumerate().flat_map(|(y, line)| {
+            line.chars()
+                .enumerate()
+                .filter(|(_, c)| c != &'.')
+                .map(move |(x, c)| Node {
+                    frequency: c,
+                    xy: glam::IVec2::new(x.try_into().unwrap(), y.try_into().unwrap()),
+                })
+        });
+        //            .collect::<Result<Vec<_>>>()?;
 
         let max_y = s.clone().count();
         let max_x = s.clone().next().unwrap().len();
-        info!("max_x: {}, max_y: {}", max_x, max_y);
 
         Ok(Data {
             nodes,
