@@ -32,6 +32,11 @@ impl CheckedAdd<u32> for u32 {
         self.checked_add(rhs)
     }
 }
+impl CheckedAdd<u64> for u64 {
+    fn checked_add(self, rhs: u64) -> Option<u64> {
+        self.checked_add(rhs)
+    }
+}
 impl CheckedAdd<usize> for usize {
     fn checked_add(self, rhs: usize) -> Option<usize> {
         self.checked_add(rhs)
