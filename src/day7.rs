@@ -56,7 +56,7 @@ fn valid_equation(e: &Equation, operators: &[Operators]) -> usize {
     let combinations = (0..e.terms.len() - 1)
         .map(|_| operators)
         .multi_cartesian_product();
-    //let combinations = OPERATORS.iter().permutations(e.terms.len() - 1);
+
     info!(
         "Combinations for size {}: {:?}",
         e.terms.len() - 1,

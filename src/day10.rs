@@ -101,7 +101,6 @@ type Direction = (isize, isize);
 /// Problem input
 #[derive(Debug)]
 struct Data {
-    // XXX: Change this to the actual data structure
     grid: Grid,
 }
 impl Data {
@@ -216,18 +215,12 @@ mod tests {
 
     #[test]
     fn part1_example() {
-        assert_eq!(
-            solve_part1(&test_data(super::DAY).unwrap()).unwrap(),
-            36 // XXX: Update this to the expected value for part 1 sample data.
-        );
+        assert_eq!(solve_part1(&test_data(super::DAY).unwrap()).unwrap(), 36);
     }
 
     #[test]
     fn part2_example() {
-        assert_eq!(
-            solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
-            81 // XXX: Update this to the expected value for part 2 sample data.
-        );
+        assert_eq!(solve_part2(&test_data(super::DAY).unwrap()).unwrap(), 81);
     }
 
     #[test]
