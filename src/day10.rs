@@ -107,9 +107,8 @@ impl Data {
     /// Parse the input into the data structure.  This is the typical
     /// nested map pattern.
     fn parse(s: &str) -> Result<Self> {
-        let s = s.lines();
         // Create the generator for the grid
-        let grid = s.map(|line| {
+        let grid = s.lines().map(|line| {
             line.chars().map(|c| {
                 // Convert the character to a digit, could be bad
                 let digit = c.to_digit(10).ok_or_else(|| anyhow::anyhow!("bad digit"))?;
@@ -117,9 +116,7 @@ impl Data {
             })
         });
         // Collect the grid into a 2D vector
-        let grid = grid
-            .map(|r| r.collect::<Result<Vec<_>>>())
-            .collect::<Result<Vec<_>>>()?;
+        let grid = grid.map(|row| row.collect()).collect::<Result<_>>()?;
 
         Ok(Data { grid })
     }

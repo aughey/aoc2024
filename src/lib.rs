@@ -88,7 +88,8 @@ where
     }
 }
 
-/// Similar to the sum() function on iterators, but will check for overflow of the sum itself.
+/// Similar to the sum() function on iterators, but will check for overflow of
+/// the sum itself.
 pub trait CheckedSum<T> {
     /// Sums the values in an iterator and checks for overflow of the sum itself.
     /// Returns None if the sum overflows.

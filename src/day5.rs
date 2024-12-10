@@ -160,7 +160,6 @@ impl FromStr for Data {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        // XXX: Do actual parsing here.
         let lines = s.lines();
 
         let mut order_rules = Vec::new();
@@ -181,7 +180,6 @@ impl FromStr for Data {
             updates.push(update);
         }
 
-        // XXX: Update the returned Data to include the parsed data.
         Ok(Data {
             order_rules,
             updates,

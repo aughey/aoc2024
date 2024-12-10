@@ -16,21 +16,18 @@ fn parse(input: &str) -> Result<Data> {
 /// Solution to part 1
 #[aoc(day3, part1)]
 fn solve_part1(input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 1
     Ok(input.numbers.iter().map(|(a, b, _)| a * b).sum())
 }
 
 /// Solution to part 2
 #[aoc(day3, part2)]
 fn solve_part2(input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 2
     Ok(input.numbers_with_dos().map(|(a, b, _)| a * b).sum())
 }
 
 /// Problem input
 #[derive(Debug)]
 struct Data {
-    // XXX: Change this to the actual data structure
     numbers: Vec<(usize, usize, usize)>,
     dos: Vec<usize>,
     donts: Vec<usize>,
@@ -86,7 +83,6 @@ impl FromStr for Data {
 
         let donts = dont.find_iter(s).map(|f| f.start()).collect();
 
-        // XXX: Update the returned Data to include the parsed data.
         Ok(Data {
             numbers,
             dos,
@@ -124,7 +120,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&parse(&test_data(super::DAY).unwrap()).unwrap()).unwrap(),
-            48 // XXX: Update this to the expected value for part 2 sample data.
+            48
         );
     }
 }
