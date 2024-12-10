@@ -60,13 +60,13 @@ fn solve_part1_impl(input: &Data) -> Result<u64> {
         }
     }
 
-    Ok(blocks
+    blocks
         .iter()
         .enumerate()
         .filter(|(_, c)| c.is_some())
         .map(|(i, c)| (i as u64 * c.unwrap()))
         .checked_sum()
-        .ok_or_else(|| anyhow::anyhow!("add overflowed"))?)
+        .ok_or_else(|| anyhow::anyhow!("add overflowed"))
 }
 
 fn solve_part2_impl(input: &Data) -> Result<u64> {
@@ -93,7 +93,7 @@ fn solve_part2_impl(input: &Data) -> Result<u64> {
                 .unwrap_or_else(|| blocks.len());
             (start_index, end_index)
         };
-        assert_eq!(blocks[from.0..from.1].iter().all(|c| c == &Some(id)), true);
+        assert!(blocks[from.0..from.1].iter().all(|c| c == &Some(id)));
         let from_len = from.1 - from.0;
 
         // Find span with empty blocks with the same length
@@ -111,7 +111,7 @@ fn solve_part2_impl(input: &Data) -> Result<u64> {
             }
         }
         if let Some(to) = to {
-            assert_eq!(blocks[to..to + from_len].iter().all(|c| c.is_none()), true);
+            assert!(blocks[to..to + from_len].iter().all(|c| c.is_none()));
             if to > from.0 {
                 continue;
             }
@@ -161,12 +161,8 @@ impl Data {
         let mut input = s.chars();
         let mut blocks = vec![];
         let mut index = 0u64;
-        loop {
-            let count = if let Some(c) = input.next() {
-                c.to_string().parse::<u64>()?
-            } else {
-                break;
-            };
+        while let Some(c) = input.next() {
+            let count = c.to_string().parse::<u64>()?;
             for _ in 0..count {
                 blocks.push(Some(index));
             }

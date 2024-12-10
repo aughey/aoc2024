@@ -119,9 +119,9 @@ pub trait DataShape {
     type RPNODE<'a>: XY
     where
         Self: 'a;
-    fn resonate_pairs<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = Result<(Self::RPNODE<'a>, Self::RPNODE<'a>)>> + 'a;
+    fn resonate_pairs(
+        &self,
+    ) -> impl Iterator<Item = Result<(Self::RPNODE<'_>, Self::RPNODE<'_>)>> + '_;
 
     fn max_xy(&self) -> Result<glam::IVec2>;
 }

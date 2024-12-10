@@ -27,14 +27,14 @@ impl DataShape for Data {
         = &'a Node
     where
         Self: 'a;
-    fn resonate_pairs<'a>(&'a self) -> impl Iterator<Item = Result<(&'a Node, &'a Node)>> + 'a {
+    fn resonate_pairs(&self) -> impl Iterator<Item = Result<(&Node, &Node)>> + '_ {
         // impl Iterator<Item = Result<(&Node, &Node)>> {
-        return pair_combinations(self.nodes.iter())
+        pair_combinations(self.nodes.iter())
             .map(|(a, b)| Ok((a, b)))
             .filter(|ab| {
                 ab.as_ref()
                     .is_ok_and(|(a, b)| a.frequency() == b.frequency())
-            });
+            })
     }
 
     fn max_xy(&self) -> Result<glam::IVec2> {
@@ -105,9 +105,9 @@ impl DataShape for DataNoStd<'_> {
         = Node
     where
         Self: 'a;
-    fn resonate_pairs<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = Result<(Self::RPNODE<'a>, Self::RPNODE<'a>)>> + 'a {
+    fn resonate_pairs(
+        &self,
+    ) -> impl Iterator<Item = Result<(Self::RPNODE<'_>, Self::RPNODE<'_>)>> + '_ {
         let nodes = parse_nodes(self.s);
         let nodes = nodes.map(|n| n.unwrap());
         pair_combinations(nodes)
