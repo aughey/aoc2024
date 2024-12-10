@@ -29,7 +29,7 @@ fn string_to_digits_validated(
         .then_some(s.chars().map(|c| c.to_digit(10).unwrap() as u8))
 }
 
-fn part1_generator(s: &str) -> Result<impl Iterator<Item = Block> + '_> {
+pub fn part1_generator(s: &str) -> Result<impl Iterator<Item = Block> + '_> {
     let digits = string_to_digits_validated(s)
         .ok_or_else(|| anyhow::anyhow!("Not all characters in string are digits"))?;
 
@@ -87,40 +87,24 @@ fn part1_generator(s: &str) -> Result<impl Iterator<Item = Block> + '_> {
                 } else {
                     Block::Empty
                 }
-            } // Block::Data(_) => {
-              //     if backward.is_none() {
-              //         Block::Empty
-              //     } else {
-              //         forward_block
-              //     }
-              // }
-              // Block::Empty => {
-              //     if let Some((backward_i, backward_block)) = backward.as_mut().and_then(|b| b.next())
-              //     {
-              //         info!("{} {}", forward_i, backward_i);
-              //         if backward_i > forward_i {
-              //             backward_block
-              //         } else {
-              //             _ = backward.take();
-              //             Block::Empty
-              //         }
-              //     } else {
-              //         Block::Empty
-              //     }
-              // }
+            }
         },
     ))
 }
 
 /// Solution to part 1
 fn solve_part1(input: &str) -> Result<u64> {
-    //    part1_generator(DigitString::new(input)?)
-
-    Ok(0)
+    Ok(part1_generator(input)?
+        .enumerate()
+        .map(|(i, b)| match b {
+            Block::Data(id) => id * i as u64,
+            Block::Empty => 0,
+        })
+        .sum())
 }
 
 /// Solution to part 2
-fn solve_part2(input: &str) -> Result<u64> {
+fn solve_part2(_input: &str) -> Result<u64> {
     Ok(0)
 }
 
@@ -239,7 +223,7 @@ mod tests {
 
     #[test]
     fn part1_example() {
-        //        assert_eq!(solve_part1(&test_data(super::DAY).unwrap()).unwrap(), 1928);
+        assert_eq!(solve_part1(&test_data(super::DAY).unwrap()).unwrap(), 1928);
     }
 
     // #[test]
