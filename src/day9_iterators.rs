@@ -1,3 +1,5 @@
+use tracing::info;
+
 use crate::Result;
 use std::fmt::Display;
 
@@ -19,31 +21,95 @@ impl<'a> IntoIterator for DigitString<'a> {
     }
 }
 
-fn part1_generator<'a, I>(digits: I) -> impl Iterator<Item = Block> + 'a
-where
-    I: Iterator<Item = u8> + Clone + DoubleEndedIterator + 'a,
-{
-    let forward = disk_map_to_blocks(disk_generator(digits.clone())).enumerate();
-    // Do a run to get the length of the blocks
-    let len = forward.clone().count();
-    let mut backward = disk_map_to_blocks(disk_generator(digits.rev()))
-        .enumerate()
-        // ignore empty blocks
-        .filter(|(_, b)| *b != Block::Empty)
-        // invert the index
-        .map(move |(i, b)| (len - i - 1, b));
+fn string_to_digits_validated(
+    s: &str,
+) -> Option<impl Iterator<Item = u8> + Clone + DoubleEndedIterator + Clone + '_> {
+    s.chars()
+        .all(|c| c.is_digit(10))
+        .then_some(s.chars().map(|c| c.to_digit(10).unwrap() as u8))
+}
 
-    forward.map(move |(forward_i, forward_block)| match &forward_block {
-        Block::Data(_) => forward_block,
-        Block::Empty => {
-            if let Some((backward_i, backward_block)) = backward.next() {
-                if backward_i > forward_i {
-                    return backward_block;
+fn part1_generator(s: &str) -> Result<impl Iterator<Item = Block> + '_> {
+    let digits = string_to_digits_validated(s)
+        .ok_or_else(|| anyhow::anyhow!("Not all characters in string are digits"))?;
+
+    let forward = disk_map_to_blocks(forward_disk_generator(digits.clone())).enumerate();
+
+    let last_id = (s.len() + 1) / 2 - 1;
+    let block_len: usize = digits.clone().map(|v| usize::from(v)).sum();
+
+    let backward_ids = {
+        let mut numbers = (0..=last_id).into_iter().rev();
+        move || numbers.next().unwrap()
+    };
+
+    let mut backward = disk_map_to_blocks(disk_generator(
+        digits.rev(),
+        if s.len() % 2 == 0 {
+            DiskMap::Empty(Default::default())
+        } else {
+            DiskMap::Data(Default::default())
+        },
+        backward_ids,
+    ))
+    .enumerate()
+    // ignore empty blocks
+    .filter(|(_, b)| *b != Block::Empty)
+    // invert the index
+    .map(move |(i, b)| (block_len - i - 1, b));
+    info!(
+        "Forward looks like: {:?}",
+        forward.clone().collect::<Vec<_>>()
+    );
+    info!(
+        "Backward looks like: {:?}",
+        backward.clone().collect::<Vec<_>>()
+    );
+    info!("first backward block is {:?}", backward.clone().next());
+
+    let mut next_backward = backward.next();
+
+    Ok(forward.map(
+        move |(forward_i, forward_block)| match (&forward_block, &next_backward) {
+            (_, None) => Block::Empty,
+            (Block::Data(_), Some((back_i, _))) => {
+                if forward_i <= *back_i {
+                    forward_block
+                } else {
+                    Block::Empty
                 }
             }
-            forward_block
-        }
-    })
+            (Block::Empty, Some((backward_i, backward_block))) => {
+                if *backward_i > forward_i {
+                    let ret = backward_block.clone();
+                    next_backward = backward.next();
+                    ret
+                } else {
+                    Block::Empty
+                }
+            } // Block::Data(_) => {
+              //     if backward.is_none() {
+              //         Block::Empty
+              //     } else {
+              //         forward_block
+              //     }
+              // }
+              // Block::Empty => {
+              //     if let Some((backward_i, backward_block)) = backward.as_mut().and_then(|b| b.next())
+              //     {
+              //         info!("{} {}", forward_i, backward_i);
+              //         if backward_i > forward_i {
+              //             backward_block
+              //         } else {
+              //             _ = backward.take();
+              //             Block::Empty
+              //         }
+              //     } else {
+              //         Block::Empty
+              //     }
+              // }
+        },
+    ))
 }
 
 /// Solution to part 1
@@ -68,7 +134,7 @@ pub fn part2(input: &str) -> impl Display {
     solve_part2(input).unwrap()
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Block {
     Empty,
     Data(u64),
@@ -87,13 +153,31 @@ pub enum DiskMap {
     Data((usize, u8)),
 }
 
-pub fn disk_generator(
+pub fn forward_disk_generator(
     digits: impl Iterator<Item = u8> + Clone,
 ) -> impl Iterator<Item = DiskMap> + Clone {
-    digits.enumerate().map(|(i, c)| match (i % 2 == 0, c) {
-        (true, count) => DiskMap::Data((i / 2, count)),
-        (false, count) => DiskMap::Empty(count),
-    })
+    let mut numbers = (0..).into_iter();
+    let id_generator = move || numbers.next().unwrap();
+    disk_generator(digits, DiskMap::Data(Default::default()), id_generator)
+}
+
+pub fn disk_generator(
+    digits: impl Iterator<Item = u8> + Clone,
+    first_digit_is: DiskMap,
+    mut id_generator: impl FnMut() -> usize + Clone,
+) -> impl Iterator<Item = DiskMap> + Clone {
+    // Depending if the first digit is a data or empty block, we start with a different modulus
+    let modulus = if matches!(first_digit_is, DiskMap::Data(_)) {
+        0
+    } else {
+        1
+    };
+    digits
+        .enumerate()
+        .map(move |(i, c)| match (i % 2 == modulus, c) {
+            (true, count) => DiskMap::Data((id_generator(), count)),
+            (false, count) => DiskMap::Empty(count),
+        })
 }
 
 pub fn disk_map_to_blocks(
@@ -130,24 +214,27 @@ mod tests {
     #[test]
     fn test_disk_generator() {
         let input = DigitString::new(TEST_DATA).unwrap();
-        let disk = disk_generator(input.into_iter());
+        let disk = forward_disk_generator(input.into_iter());
         let blocks = disk_map_to_blocks(disk);
         assert_eq!(blocks_to_string(blocks), TEST_RES);
     }
 
     #[test]
     fn test_part1_generator() {
-        let input = DigitString::new("22").unwrap();
-        let blocks = part1_generator(input.into_iter())
+        let blocks = part1_generator("22")
+            .unwrap()
             .map(|b| b.to_string())
             .collect::<Vec<_>>();
         assert_eq!(blocks, vec!["0", "0", ".", "."]);
 
-        let input = DigitString::new("222").unwrap();
-        let blocks = part1_generator(input.into_iter())
+        let blocks = part1_generator("222")
+            .unwrap()
             .map(|b| b.to_string())
             .collect::<Vec<_>>();
         assert_eq!(blocks, vec!["0", "0", "1", "1", ".", "."]);
+
+        let blocks = blocks_to_string(part1_generator(TEST_DATA).unwrap());
+        assert_eq!(blocks, "0099811188827773336446555566..............");
     }
 
     #[test]
