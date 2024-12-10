@@ -163,6 +163,7 @@ struct Cell<'a> {
 impl Cell<'_> {
     /// Get the height of the cell
     fn height(&self) -> u8 {
+        // direct access is safe because we are guaranteed to be in bounds
         self.grid[self.y][self.x]
     }
     /// Get the XY coordinates of the cell
