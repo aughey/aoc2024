@@ -2,49 +2,51 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::{collections::HashSet, fmt::Display, ops::Add};
-use tracing::info;
 
 pub const DAY: u32 = 10;
 
 /// A trail score consisting of:
-/// - count: The number of ends reachable by this trailhead.
-/// - rating: The number of unique paths to the end reachable by this trailhead.
 #[derive(Debug, Default)]
 struct Score {
-    count: usize,
-    rating: usize,
+    /// The number of ends reachable by this trailhead.
+    num_reachable_ends: usize,
+    /// The number of unique paths to an end reachable by this trailhead.
+    num_unique_paths: usize,
 }
 impl Add for Score {
     type Output = Self;
     fn add(self, other: Self) -> Self {
         Score {
-            count: self.count + other.count,
-            rating: self.rating + other.rating,
+            num_reachable_ends: self.num_reachable_ends + other.num_reachable_ends,
+            num_unique_paths: self.num_unique_paths + other.num_unique_paths,
         }
+    }
+}
+
+/// Compute the score for a trail starting at `head`.
+/// A score is defined as the number of reachable ends, and the
+/// number of unique paths.
+fn score_for_trail<'a>(head: Cell<'a>) -> Score {
+    // Keep track of all the unique ends we reach
+    let mut reached_ends = HashSet::new();
+    // Recursively walk the trail, returns the rating and accumulates the ends
+    let num_unique_paths = recursive_walk(head, &mut reached_ends);
+
+    Score {
+        num_reachable_ends: reached_ends.len(),
+        num_unique_paths,
     }
 }
 
 /// Walk all the trail heads and return an accumulated score
 /// for all the trails.  This generates scores for both part 1
 /// and part 2 at the same time.
-fn walk_trails(input: &Data) -> Result<Score> {
-    Ok(input
-        // For all the trail heads
-        .trail_heads()
+fn walk_trails<'a>(trail_heads: impl Iterator<Item = Cell<'a>>) -> Result<Score> {
+    Ok(trail_heads
         // Compute a score for this trail head.
-        .map(|head| {
-            // Keep track of all the unique ends we reach
-            let mut reached_ends = HashSet::new();
-            // Recursively walk the trail, returns the rating and accumulates the ends
-            let rating = recursive_walk(head, &mut reached_ends);
-            // Count is the number of unique ends we reached
-            let count = reached_ends.len();
-
-            Score { count, rating }
-        })
-        .inspect(|v| info!("Count: {v:?}"))
+        .map(score_for_trail)
         // The parts ask for an accumulated score.
-        // the fold is the same as sum
+        // this fold is the same as sum
         .fold(Score::default(), Score::add))
 }
 
@@ -59,8 +61,8 @@ fn recursive_walk(cell: Cell, reached: &mut HashSet<XY>) -> usize {
         reached.insert(cell.xy());
         return 1;
     }
-    // The return value is accumulating how many times we reach the
-    // end of the trail
+    // The return value is the number of unique paths, so sum up
+    // the recursive walks of all of our next possible positions.
     cell.next_trail_positions()
         .map(|next| recursive_walk(next, reached))
         .sum()
@@ -68,12 +70,12 @@ fn recursive_walk(cell: Cell, reached: &mut HashSet<XY>) -> usize {
 
 /// Solution to part 1 is walking the trails and returning count
 fn solve_part1_impl(input: &Data) -> Result<usize> {
-    Ok(walk_trails(input)?.count)
+    Ok(walk_trails(input.trail_heads())?.num_reachable_ends)
 }
 
 /// Solution to part 1 is walking the trails and returning rating
 fn solve_part2_impl(input: &Data) -> Result<usize> {
-    Ok(walk_trails(input)?.rating)
+    Ok(walk_trails(input.trail_heads())?.num_unique_paths)
 }
 
 /// Solution to part 1
@@ -94,6 +96,7 @@ fn solve_part2(input: &str) -> Result<usize> {
 type Grid = Vec<Vec<u8>>;
 /// A coordinate of the grid
 type XY = (usize, usize);
+type Direction = (isize, isize);
 
 /// Problem input
 #[derive(Debug)]
@@ -135,6 +138,23 @@ impl Data {
     }
 }
 
+/// Spec: a valid next height is our current height + 1
+fn is_valid_next_height(cur_height: u8, other_height: u8) -> bool {
+    // Panic guard against being at the top of u8
+    if cur_height == u8::MAX {
+        false
+    } else {
+        cur_height + 1 == other_height
+    }
+}
+
+/// Spec: The directions someone can move are up down left and right
+const fn movable_directions() -> &'static [Direction] {
+    // The directions we could go in.
+    const DIRECTIONS: &[(isize, isize)] = &[(0, -1), (0, 1), (-1, 0), (1, 0)];
+    DIRECTIONS
+}
+
 /// A cell is a position on the grid
 struct Cell<'a> {
     x: usize,
@@ -156,23 +176,19 @@ impl Cell<'_> {
     /// adjacent (left,right,up,down) to this cell and have a height
     /// that is one greater
     fn next_trail_positions(&self) -> impl Iterator<Item = Cell> {
-        // The directions we could go in.
-        const DIRECTIONS: &[(isize, isize)] = &[(0, -1), (0, 1), (-1, 0), (1, 0)];
-        // The next height is the current height + 1
-        let next_height = self.height().checked_add(1).unwrap();
+        let cur_height = self.height();
 
         // Filter the directions to only those that are valid.
         // The short circuit `?` and `then` allows coordinates and
         // conditions to be checked without getting in the way of
         // the happy path.
-        DIRECTIONS.iter().filter_map(move |(dx, dy)| {
+        movable_directions().iter().filter_map(move |(dx, dy)| {
             // Compute the next position and height with short circuiting.
             let x = self.x.checked_add_signed(*dx)?;
             let y = self.y.checked_add_signed(*dy)?;
-            let height = self.grid.get(y)?.get(x)?;
+            let this_height = *self.grid.get(y)?.get(x)?;
 
-            // If the height is the next height, return the cell
-            (height == &next_height).then(|| Cell {
+            is_valid_next_height(cur_height, this_height).then(|| Cell {
                 x,
                 y,
                 grid: self.grid,
@@ -212,5 +228,39 @@ mod tests {
             solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
             81 // XXX: Update this to the expected value for part 2 sample data.
         );
+    }
+
+    #[test]
+    fn test_spec_next_height() {
+        // one up.
+        assert!(is_valid_next_height(0, 1));
+        assert!(is_valid_next_height(1, 2));
+        assert!(is_valid_next_height(2, 3));
+
+        // Bad ones
+        // two up,
+        assert!(!is_valid_next_height(2, 4));
+        // same
+        assert!(!is_valid_next_height(2, 2));
+        // one down
+        assert!(!is_valid_next_height(2, 1));
+        // two down
+        assert!(!is_valid_next_height(2, 0));
+
+        // Possible overflow at 255 and 0
+        assert!(is_valid_next_height(254, 255));
+        assert!(!is_valid_next_height(255, 254));
+        assert!(is_valid_next_height(0, 1));
+        assert!(!is_valid_next_height(1, 0));
+    }
+
+    #[test]
+    fn test_spec_directions() {
+        // our spec should have 4 directions, left right up down
+        assert!(movable_directions().contains(&(0, 1)));
+        assert!(movable_directions().contains(&(0, -1)));
+        assert!(movable_directions().contains(&(1, 0)));
+        assert!(movable_directions().contains(&(-1, 0)));
+        assert_eq!(movable_directions().len(), 4);
     }
 }
