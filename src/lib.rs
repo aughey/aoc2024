@@ -7,6 +7,7 @@ pub mod day6;
 pub mod day7;
 pub mod day8;
 pub mod day9;
+pub mod day9_iterators;
 
 pub use anyhow::Result;
 use aoc_runner_derive::aoc_lib;
