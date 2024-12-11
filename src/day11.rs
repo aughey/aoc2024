@@ -6,10 +6,7 @@ use tracing::info;
 
 pub const DAY: u32 = 11;
 
-fn blink_stone(stone: u64, steps_to_go: usize, cache: Cache) -> Result<Vec<u64>> {
-    if let Some(res) = cache.get(&(stone, steps_to_go)) {
-        return Ok(*res);
-    }
+fn blink_stone(stone: u64) -> Result<Vec<u64>> {
     let newstone = if stone == 0 {
         vec![1]
     } else if stone.to_string().len() % 2 == 0 {
@@ -22,10 +19,29 @@ fn blink_stone(stone: u64, steps_to_go: usize, cache: Cache) -> Result<Vec<u64>>
     Ok(newstone)
 }
 
+/// Key is stone id and the depth
 type Key = (u64, usize);
+/// Value is how many stones
 type Cache = std::collections::HashMap<Key, usize>;
 
-fn blink(stones: Vec<u64>, steps_to_go: usize, cache: &mut Cache) -> Result<Vec<u64>> {
+fn split_count(stone: u64, depth: usize, cache: &mut Cache) -> Result<usize> {
+    if depth == 0 {
+        return Ok(1);
+    }
+    let key = (stone, depth);
+    if let Some(depth) = cache.get(&key) {
+        return Ok(*depth);
+    }
+    let stones = blink_stone(stone)?;
+    let count = stones
+        .into_iter()
+        .map(|s| split_count(s, depth - 1, cache))
+        .sum_results()?;
+    cache.insert(key, count);
+    Ok(count)
+}
+
+fn blink(stones: Vec<u64>) -> Result<Vec<u64>> {
     let mut newstones = vec![];
     for stone in stones {
         let newstone = blink_stone(stone)?;
@@ -45,20 +61,17 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     Ok(stones.len())
 }
 
-fn solve_part2_impl(input: &Data) -> Result<usize> {
-    let stones = &input.stones;
+fn solve_depth(stones: impl Iterator<Item = u64>, depth: usize) -> Result<usize> {
+    let mut cache = Cache::new();
+    let count = stones
+        .map(|s| split_count(s, depth, &mut cache))
+        .sum_results()?;
 
-    // do each one by itself an sum
-    Ok(stones
-        .into_iter()
-        .map(|s| {
-            let mut stones = vec![*s];
-            for _ in 0..75 {
-                stones = blink(stones)?;
-            }
-            Ok(stones.len())
-        })
-        .sum_results()?)
+    Ok(count)
+}
+
+fn solve_part2_impl(input: &Data) -> Result<usize> {
+    solve_depth(input.stones.iter().copied(), 75)
 }
 
 /// Solution to part 1
@@ -116,9 +129,11 @@ mod tests {
 
     #[test]
     fn part2_example() {
+        let s = test_data(super::DAY).unwrap();
+        let parsed = Data::parse(&s).unwrap();
         assert_eq!(
-            solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 2 sample data.
+            solve_depth(parsed.stones.iter().copied(), 25).unwrap(),
+            55312
         );
     }
 }
