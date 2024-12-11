@@ -1,19 +1,64 @@
-use crate::Result;
+use crate::{Result, SumResults};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::fmt::Display;
+use tracing::info;
 
 pub const DAY: u32 = 11;
 
-fn solve_part1_impl(input: &Data) -> Result<usize> {
-    let stones = input.stones.clone();
-
-    Ok(0)
+fn blink_stone(stone: u64, steps_to_go: usize, cache: Cache) -> Result<Vec<u64>> {
+    if let Some(res) = cache.get(&(stone, steps_to_go)) {
+        return Ok(*res);
+    }
+    let newstone = if stone == 0 {
+        vec![1]
+    } else if stone.to_string().len() % 2 == 0 {
+        let stone = stone.to_string();
+        let (a, b) = stone.split_at(stone.to_string().len() / 2);
+        vec![a.parse::<u64>()?, b.parse::<u64>()?]
+    } else {
+        vec![stone * 2024]
+    };
+    Ok(newstone)
 }
 
-fn solve_part2_impl(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 2
-    Ok(0)
+type Key = (u64, usize);
+type Cache = std::collections::HashMap<Key, usize>;
+
+fn blink(stones: Vec<u64>, steps_to_go: usize, cache: &mut Cache) -> Result<Vec<u64>> {
+    let mut newstones = vec![];
+    for stone in stones {
+        let newstone = blink_stone(stone)?;
+        newstones.extend_from_slice(newstone.as_slice());
+    }
+    Ok(newstones)
+}
+
+fn solve_part1_impl(input: &Data) -> Result<usize> {
+    let mut stones = input.stones.clone();
+
+    for _ in 0..25 {
+        stones = blink(stones)?;
+        info!("stones: {:?}", stones);
+    }
+
+    Ok(stones.len())
+}
+
+fn solve_part2_impl(input: &Data) -> Result<usize> {
+    let stones = &input.stones;
+
+    // do each one by itself an sum
+    Ok(stones
+        .into_iter()
+        .map(|s| {
+            let mut stones = vec![*s];
+            for _ in 0..75 {
+                stones = blink(stones)?;
+            }
+            Ok(stones.len())
+        })
+        .sum_results()?)
 }
 
 /// Solution to part 1
@@ -34,12 +79,14 @@ fn solve_part2(input: &str) -> Result<usize> {
 #[derive(Debug)]
 struct Data {
     // XXX: Change this to the actual data structure
-    stones: Vec<String>,
+    stones: Vec<u64>,
 }
 impl Data {
     fn parse(s: &str) -> Result<Self> {
         // XXX: Do actual parsing here.
-        let stones = s.split_whitespace().map(|s| s.to_string()).collect();
+        let stones = s.split_whitespace().map(|s| Ok(s.parse::<u64>()?));
+        let stones = stones.collect::<Result<_>>()?;
+
         // XXX: Update the returned Data to include the parsed data.
         Ok(Data { stones })
     }
@@ -64,10 +111,7 @@ mod tests {
 
     #[test]
     fn part1_example() {
-        assert_eq!(
-            solve_part1(&test_data(super::DAY).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 1 sample data.
-        );
+        assert_eq!(solve_part1(&test_data(super::DAY).unwrap()).unwrap(), 55312);
     }
 
     #[test]
