@@ -5,8 +5,9 @@ use std::fmt::Display;
 
 pub const DAY: u32 = 11;
 
-fn solve_part1_impl(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 1
+fn solve_part1_impl(input: &Data) -> Result<usize> {
+    let stones = input.stones.clone();
+
     Ok(0)
 }
 
@@ -33,14 +34,14 @@ fn solve_part2(input: &str) -> Result<usize> {
 #[derive(Debug)]
 struct Data {
     // XXX: Change this to the actual data structure
-    _len: usize,
+    stones: Vec<String>,
 }
 impl Data {
     fn parse(s: &str) -> Result<Self> {
         // XXX: Do actual parsing here.
-        let s = s.lines();
+        let stones = s.split_whitespace().map(|s| s.to_string()).collect();
         // XXX: Update the returned Data to include the parsed data.
-        Ok(Data { _len: s.count() })
+        Ok(Data { stones })
     }
 }
 
