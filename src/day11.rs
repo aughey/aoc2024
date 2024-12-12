@@ -2,7 +2,7 @@ use crate::{Result, SumResults};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::fmt::Display;
-use tracing::{debug, info};
+use tracing::debug;
 
 pub const DAY: u32 = 11;
 
