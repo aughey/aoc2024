@@ -102,12 +102,14 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         info!("point: {:?} {}", point, this_c);
 
         let mut connected = vec![point];
+        // Splat the points over and over looking for points we haven't
+        // seen and that are adjacent to points in this connected list.
         loop {
             let mut found = false;
             for p in points
                 .clone()
-                .filter(|p| grid[p.1][p.0] == this_c)
                 .filter(|p| !seen.contains(p))
+                .filter(|p| grid[p.1][p.0] == this_c)
                 .filter(|p| connected.iter().any(|c| next_to(c, p)))
                 .collect::<Vec<_>>()
             {
@@ -146,7 +148,6 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             })
             .collect::<Vec<_>>();
 
-        // need to walk again.
         let fence_count = fences
             .iter()
             .map(|(_, fence_sides)| fence_sides.len())
