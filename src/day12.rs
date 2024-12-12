@@ -1,14 +1,17 @@
 use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
-use std::{collections::HashSet, fmt::Display};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+};
 use tracing::info;
 
 pub const DAY: u32 = 12;
 
 fn solve_part1_impl(input: &Data) -> Result<usize> {
     // make a grid of nones
-    let mut seen: HashSet<(usize, usize)> = HashSet::new();
+    let mut seen: HashSet<XY> = HashSet::new();
 
     let grid = &input.grid;
 
@@ -45,7 +48,7 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
             }
         }
         info!("connected: {this_c} {:?}", connected);
-        const DIRECTIONS: &[(isize, isize)] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
+        const DIRECTIONS: &[Direction] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
         let fence_count = connected
             .iter()
             .map(|p| {
@@ -76,78 +79,123 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     Ok(scores.map(|s| s.1 * s.2).sum())
 }
 
-fn next_to(point0: &(usize, usize), point1: &(usize, usize)) -> bool {
-    let diff = (point0.0.abs_diff(point1.0), point0.1.abs_diff(point1.1));
-    (diff.0 <= 1 && diff.1 <= 1) && diff.0 != diff.1
+/// Spec: directions that can be considered immediately adjacent
+/// to a point.
+/// Defined as left right up down.
+const ADJ_DIRECTIONS: &[Direction] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
+
+/// Are two points next to each other?
+fn next_to(point0: &XY, point1: &XY) -> bool {
+    ADJ_DIRECTIONS
+        .iter()
+        .any(|d| delta_xy(point0, d) == Some(*point1))
+}
+
+/// Given a point, find all the points that are connected to it.
+///
+/// Connected points are points that are the same color and are adjacent to
+/// other points in the connected set.
+fn extract_connected<'a, T>(
+    point: XY,
+    this_c: &'a T,
+    points: impl Iterator<Item = (&'a T, XY)> + Clone,
+    adjacent_directions: impl Iterator<Item = Direction> + Clone + 'a,
+) -> HashSet<XY>
+where
+    T: std::cmp::PartialEq + 'a,
+{
+    // Iteratively build up a set of connected points.
+    let mut connected = HashSet::new();
+    // Add the starting point to the connected set.
+    connected.insert(point);
+
+    // Keep looking for points that haven't been
+    // seen and that are adjacent to points in this connected list.
+    loop {
+        // Points that could be considered (not in connected and are the same color)
+        let possible_points = points
+            .clone()
+            .filter(|(_, p)| !connected.contains(p))
+            .filter(|(c, _)| c == &this_c);
+
+        // Find all the points that are adjacent to a point in our set
+        let points_adjacented_to_connected = possible_points
+            .filter_map(|(_, p)| {
+                // look at all of our adjacent points.
+                let mut adjacent_points = coordinates_from(&p, adjacent_directions.clone());
+                // this is in the set if any adjacent point is in the connected set
+                adjacent_points
+                    .any(|adj| connected.contains(&adj))
+                    .then_some(p)
+            })
+            .collect::<Vec<_>>();
+
+        // Add all the points we found to the connected set.
+        connected.extend(points_adjacented_to_connected.iter());
+
+        // If we didn't find any new points, we are done.
+        if points_adjacented_to_connected.is_empty() {
+            break;
+        }
+    }
+    connected
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
     // make a grid of nones
-    let mut seen: HashSet<(usize, usize)> = HashSet::new();
+    let mut seen: HashSet<XY> = HashSet::new();
 
     let grid = &input.grid;
 
     let points = grid
         .iter()
         .enumerate()
-        .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, _)| (x, y)));
+        .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (c, (x, y))));
 
-    let scores = points.clone().filter_map(move |point| {
+    struct GroupScore {
+        area: usize,
+        permimeter: usize,
+    }
+
+    let scores = points.clone().filter_map(move |(this_c, point)| {
         if !seen.insert(point) {
             return None;
         }
         seen.insert(point);
 
-        let this_c = input.grid[point.1][point.0];
         info!("point: {:?} {}", point, this_c);
 
-        let mut connected = vec![point];
-        // Splat the points over and over looking for points we haven't
-        // seen and that are adjacent to points in this connected list.
-        loop {
-            let mut found = false;
-            for p in points
-                .clone()
-                .filter(|p| !seen.contains(p))
-                .filter(|p| grid[p.1][p.0] == this_c)
-                .filter(|p| connected.iter().any(|c| next_to(c, p)))
-                .collect::<Vec<_>>()
-            {
-                seen.insert(p);
-                connected.push(p);
-                found = true
-            }
-            if !found {
-                break;
-            }
-        }
+        // Connected is a set of points that are connected to this point
+        let connected = extract_connected(
+            point,
+            this_c,
+            points.clone(),
+            ADJ_DIRECTIONS.iter().copied(),
+        );
+
+        // Mark all of these points as seen.
+        seen.extend(connected.iter());
+
         info!("connected: {this_c} {:?}", connected);
-        const DIRECTIONS: &[(isize, isize)] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
-        let fences = connected
+        // Find all the fence sides for each point in the connected set.
+        let fences: HashMap<XY, HashSet<&Direction>> = connected
             .iter()
             .map(|p| {
-                let invalid_fence_sides = DIRECTIONS
+                let fence_sides = ADJ_DIRECTIONS
                     .iter()
-                    .filter_map(|d| {
-                        let x = p.0.checked_add_signed(d.0)?;
-                        let y = p.1.checked_add_signed(d.1)?;
-                        let test_c = grid.get(y)?.get(x)?;
-                        info!("  checking:  {:?}", (x, y));
-                        if test_c == &this_c {
-                            Some(d)
-                        } else {
-                            None
-                        }
+                    .filter(|d| {
+                        // This is NOT a valid fence side if the cell in this direction
+                        // is in our connected set.
+                        delta_xy(p, d)
+                            .map(|newxy| !connected.contains(&newxy))
+                            .unwrap_or(true)
                     })
-                    .collect::<Vec<_>>();
-                let fence_sides = DIRECTIONS
-                    .iter()
-                    .filter(|d| !invalid_fence_sides.contains(d))
-                    .collect::<Vec<_>>();
+                    .collect::<HashSet<_>>();
                 (*p, fence_sides)
             })
-            .collect::<Vec<_>>();
+            .collect::<HashMap<_, _>>();
 
+        // Count all the fence sides (part 1 answer)
         let fence_count = fences
             .iter()
             .map(|(_, fence_sides)| fence_sides.len())
@@ -155,55 +203,83 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
 
         info!("   starting fence_count: {this_c} {}", fence_count);
 
-        let subtract = fences.iter().filter_map(|(p, fence_sides)| {
-            // look to left
-            let leftp = (p.0.checked_sub(1)?, p.1);
-            let left = fences.iter().find(|(p, _)| p == &leftp)?.1.clone();
+        // Our subtract pattern considers a cell in an adjacent direction and
+        // will subtract a fence for each fence side in this pattern that is
+        // in both our cell and the adjacent cell.
+        struct SubtractPattern {
+            direction: Direction,
+            fence_sides: &'static [Direction],
+        }
 
-            let mut subtract = 0;
-            // look for a top and bottom
-            if fence_sides.contains(&&(0, 1)) && left.contains(&&(0, 1)) {
-                info!("sub: (0,1) at {:?}", p);
-                subtract += 1;
-            }
-            if fence_sides.contains(&&(0, -1)) && left.contains(&&(0, -1)) {
-                info!("sub: (0,-1) at {:?}", p);
-                subtract += 1;
-            }
+        // The subtract patterns we will consider.
+        const SUBTRACT_PATTERNS: &[SubtractPattern] = &[
+            // For left, we don't repeat a count if both us and them have top and bottom fences.
+            SubtractPattern {
+                direction: (-1, 0),
+                fence_sides: &[(0, 1), (0, -1)],
+            },
+            // For left, we don't repeat a count if both us and them have left and right fences.
+            SubtractPattern {
+                direction: (0, -1),
+                fence_sides: &[(1, 0), (-1, 0)],
+            },
+        ];
 
-            Some(subtract)
-        });
+        // Look at all the fences and see if we can subtract some.
+        let subtract: usize = fences
+            .iter()
+            .flat_map(|(p, fence_sides)| {
+                // (p,fence_sides) is a point in our collection and the fence sides for that point.
 
-        let fence_count = fence_count - subtract.sum::<usize>();
+                // Look at all the subtract patterns see how many sides we can subtract.
+                SUBTRACT_PATTERNS.iter().filter_map(|pattern| {
+                    // get the adjacent cell xy coordinates
+                    let adj_xy = delta_xy(p, &pattern.direction)?;
+                    // Get the fences of this adjacent cell.
+                    let adj_fences = fences.get(&adj_xy)?;
+                    Some(
+                        pattern
+                            // look at the fence sides that are in our pattern
+                            .fence_sides
+                            .iter()
+                            // Include this sides if it's in both our's and the adjacent fence sets.
+                            .filter(|side| fence_sides.contains(side) && adj_fences.contains(side))
+                            // We'll subtract the count of fence patterns that form straight lines.
+                            .count(),
+                    )
+                })
+            })
+            .sum();
 
-        // now back one
-        let subtrace = fences.iter().filter_map(|(p, fence_sides)| {
-            // look to left
-            let abovep = (p.0, p.1.checked_sub(1)?);
-            let above = fences.iter().find(|(p, _)| p == &abovep)?.1.clone();
-
-            let mut subtract = 0;
-            // look for a left and right
-            if fence_sides.contains(&&(1, 0)) && above.contains(&&(1, 0)) {
-                info!("sub: (1,0) at {:?}", p);
-                subtract += 1;
-            }
-            if fence_sides.contains(&&(-1, 0)) && above.contains(&&(-1, 0)) {
-                info!("sub: (-1,0) at {:?}", p);
-                subtract += 1;
-            }
-
-            Some(subtract)
-        });
-
-        let fence_count = fence_count - subtrace.sum::<usize>();
+        // Subtract fences that contribute to the continuation of a fence line.
+        let fence_count = fence_count - subtract;
 
         info!("  fence_count: {this_c} {}", fence_count);
 
-        Some((this_c, fence_count, connected.len()))
+        Some(GroupScore {
+            area: connected.len(),
+            permimeter: fence_count,
+        })
     });
 
-    Ok(scores.map(|s| s.1 * s.2).sum())
+    Ok(scores.map(|s| s.area * s.permimeter).sum())
+}
+
+// Given an xy and direction, compute a new xy not going out of bounds.
+fn delta_xy(xy: &XY, delta: &Direction) -> Option<XY> {
+    Some((
+        xy.0.checked_add_signed(delta.0)?,
+        xy.1.checked_add_signed(delta.1)?,
+    ))
+}
+
+/// Given an xy and a list of directions, return an iterator that provides
+/// the valid coordinates that are in these delta directions.
+fn coordinates_from<'a>(
+    xy: &'a XY,
+    directions: impl IntoIterator<Item = Direction> + 'a,
+) -> impl Iterator<Item = XY> + 'a {
+    directions.into_iter().filter_map(move |d| delta_xy(xy, &d))
 }
 
 /// Solution to part 1
@@ -221,6 +297,8 @@ fn solve_part2(input: &str) -> Result<usize> {
 }
 
 type Grid = Vec<Vec<char>>;
+type XY = (usize, usize);
+type Direction = (isize, isize);
 
 /// Problem input
 #[derive(Debug)]
