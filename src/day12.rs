@@ -2,6 +2,7 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Display,
 };
@@ -91,15 +92,11 @@ fn next_to(point0: &XY, point1: &XY) -> bool {
         .any(|d| delta_xy(point0, d) == Some(*point1))
 }
 
-/// Given a point, find all the points that are connected to it.
-///
-/// Connected points are points that are the same color and are adjacent to
-/// other points in the connected set.
-fn extract_connected<'a, T>(
+fn extract_connected_for_loop<'a, T>(
     point: XY,
     this_c: &'a T,
     points: impl Iterator<Item = (&'a T, XY)> + Clone,
-    adjacent_directions: impl Iterator<Item = Direction> + Clone + 'a,
+    adjacent_directions: impl Iterator<Item = &'a Direction> + Clone + 'a,
 ) -> HashSet<XY>
 where
     T: std::cmp::PartialEq + 'a,
@@ -109,36 +106,98 @@ where
     // Add the starting point to the connected set.
     connected.insert(point);
 
+    // Keep looking for points that are our same color, haven't been
+    // already added to our set, and are adjacent to any point in this connected list.
+    loop {
+        // Points that could be considered (not in connected and are the same color)
+        let possible_points = points.clone().filter(|(c, _)| c == &this_c);
+
+        let mut added = false;
+        for (_, p) in possible_points {
+            // It's already in the set, skip it.
+            if connected.contains(&p) {
+                continue;
+            }
+
+            // Find all the points that are adjacent to a point in our set
+            // look at all of our adjacent points.
+            let adjacent_points = coordinates_from(p, adjacent_directions.clone());
+            for adj_p in adjacent_points {
+                if connected.contains(&adj_p) {
+                    connected.insert(p);
+                    added = true;
+                    break;
+                }
+            }
+        }
+
+        // If we didn't find any new points, we are done.
+        if !added {
+            break;
+        }
+    }
+    connected
+}
+
+/// Given a point, find all the points that are connected to it.
+///
+/// Connected points are points that are the same color and are adjacent to
+/// other points in the connected set.
+///
+/// This is the same as extract_connected_for_loop but uses iterators instead of
+/// for loops.  A curious thing is because of the need to add to the connected set
+/// while querying, this version is more complex than the for loop version because
+/// of needing to use a RefCell to keep the borrow checker happy.
+pub fn extract_connected<'a, T>(
+    point: XY,
+    this_c: &'a T,
+    points: impl Iterator<Item = (&'a T, XY)> + Clone,
+    adjacent_directions: impl Iterator<Item = &'a Direction> + Clone + 'a,
+) -> HashSet<XY>
+where
+    T: std::cmp::PartialEq + 'a,
+{
+    // Iteratively build up a set of connected points.
+    let mut connected = HashSet::new();
+    // Add the starting point to the connected set.
+    connected.insert(point);
+    // Because we need to query and mutate this set during the generation of
+    // the connected set, we use a RefCell to keep the borrow checker happy.
+    let connected = RefCell::new(connected);
+
     // Keep looking for points that haven't been
     // seen and that are adjacent to points in this connected list.
     loop {
         // Points that could be considered (not in connected and are the same color)
         let possible_points = points
             .clone()
-            .filter(|(_, p)| !connected.contains(p))
+            .filter(|(_, p)| !connected.borrow().contains(p))
             .filter(|(c, _)| c == &this_c);
 
         // Find all the points that are adjacent to a point in our set
-        let points_adjacented_to_connected = possible_points
-            .filter_map(|(_, p)| {
-                // look at all of our adjacent points.
-                let mut adjacent_points = coordinates_from(&p, adjacent_directions.clone());
-                // this is in the set if any adjacent point is in the connected set
-                adjacent_points
-                    .any(|adj| connected.contains(&adj))
-                    .then_some(p)
-            })
-            .collect::<Vec<_>>();
+        let points_adjacented_to_connected = possible_points.filter_map(|(_, p)| {
+            // look at all of our adjacent points.
+            let mut adjacent_points = coordinates_from(p, adjacent_directions.clone());
+            // this is in the set if any adjacent point is in the connected set
+            let connected = connected.borrow();
+            adjacent_points
+                .any(|adj| connected.contains(&adj))
+                .then_some(p)
+        });
 
         // Add all the points we found to the connected set.
-        connected.extend(points_adjacented_to_connected.iter());
+        let mut added = false;
+        points_adjacented_to_connected.for_each(|p| {
+            connected.borrow_mut().insert(p);
+            added = true;
+        });
 
         // If we didn't find any new points, we are done.
-        if points_adjacented_to_connected.is_empty() {
+        if !added {
             break;
         }
     }
-    connected
+    connected.take()
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
@@ -166,12 +225,8 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         info!("point: {:?} {}", point, this_c);
 
         // Connected is a set of points that are connected to this point
-        let connected = extract_connected(
-            point,
-            this_c,
-            points.clone(),
-            ADJ_DIRECTIONS.iter().copied(),
-        );
+        let connected =
+            extract_connected_for_loop(point, this_c, points.clone(), ADJ_DIRECTIONS.iter());
 
         // Mark all of these points as seen.
         seen.extend(connected.iter());
@@ -197,8 +252,8 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
 
         // Count all the fence sides (part 1 answer)
         let fence_count = fences
-            .iter()
-            .map(|(_, fence_sides)| fence_sides.len())
+            .values()
+            .map(|fence_sides| fence_sides.len())
             .sum::<usize>();
 
         info!("   starting fence_count: {this_c} {}", fence_count);
@@ -273,13 +328,13 @@ fn delta_xy(xy: &XY, delta: &Direction) -> Option<XY> {
     ))
 }
 
-/// Given an xy and a list of directions, return an iterator that provides
+/// Given an xy and an iterator of directions, return an iterator that provides
 /// the valid coordinates that are in these delta directions.
 fn coordinates_from<'a>(
-    xy: &'a XY,
-    directions: impl IntoIterator<Item = Direction> + 'a,
+    xy: XY,
+    directions: impl Iterator<Item = &'a Direction> + 'a,
 ) -> impl Iterator<Item = XY> + 'a {
-    directions.into_iter().filter_map(move |d| delta_xy(xy, &d))
+    directions.filter_map(move |d| delta_xy(&xy, d))
 }
 
 /// Solution to part 1
