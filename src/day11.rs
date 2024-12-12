@@ -2,7 +2,7 @@ use crate::{Result, SumResults};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::fmt::Display;
-use tracing::info;
+use tracing::{debug, info};
 
 pub const DAY: u32 = 11;
 
@@ -22,26 +22,33 @@ fn blink_stone(stone: u64) -> Result<Vec<u64>> {
 /// Key is stone id and the depth
 type Key = (u64, usize);
 /// Value is how many stones
-type Cache = std::collections::HashMap<Key, usize>;
+type Cache = std::collections::BTreeMap<Key, usize>;
 
-fn split_count(stone: u64, depth: usize, cache: &mut Cache) -> Result<usize> {
+/// Given a stone, blink it according to the rules, and return how many stones are created.
+/// This is a recursive function that will call itself for each stone created.
+/// depth is how many times to blink the stones with 0 depth being the base case (Don't blink).
+fn recurse_count(stone: u64, depth: usize, cache: &mut Cache) -> Result<usize> {
+    // base case, no blinking, it's just one stone.
+    debug!("stone: {}, depth: {}", stone, depth);
     if depth == 0 {
         return Ok(1);
     }
+    // Our key in the cache is the stone number and the depth
     let key = (stone, depth);
+    // If we have already calculated this, return the cached value.
     if let Some(depth) = cache.get(&key) {
         return Ok(*depth);
     }
     let stones = blink_stone(stone)?;
     let count = stones
         .into_iter()
-        .map(|s| split_count(s, depth - 1, cache))
+        .map(|s| recurse_count(s, depth - 1, cache))
         .sum_results()?;
     cache.insert(key, count);
     Ok(count)
 }
 
-fn blink(stones: Vec<u64>) -> Result<Vec<u64>> {
+pub fn blink(stones: Vec<u64>) -> Result<Vec<u64>> {
     let mut newstones = vec![];
     for stone in stones {
         let newstone = blink_stone(stone)?;
@@ -51,21 +58,23 @@ fn blink(stones: Vec<u64>) -> Result<Vec<u64>> {
 }
 
 fn solve_part1_impl(input: &Data) -> Result<usize> {
-    let mut stones = input.stones.clone();
+    return solve_depth(input.stones.iter().copied(), 25);
+    // let mut stones = input.stones.clone();
 
-    for _ in 0..25 {
-        stones = blink(stones)?;
-        info!("stones: {:?}", stones);
-    }
+    // for _ in 0..25 {
+    //     stones = blink(stones)?;
+    //     info!("stones: {:?}", stones);
+    // }
 
-    Ok(stones.len())
+    // Ok(stones.len())
 }
 
 fn solve_depth(stones: impl Iterator<Item = u64>, depth: usize) -> Result<usize> {
     let mut cache = Cache::new();
     let count = stones
-        .map(|s| split_count(s, depth, &mut cache))
+        .map(|s| recurse_count(s, depth, &mut cache))
         .sum_results()?;
+    debug!("Cache size: {}", cache.len());
 
     Ok(count)
 }
