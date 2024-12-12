@@ -2,9 +2,9 @@ use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::{
-    cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Display,
+    hash::Hash,
 };
 
 pub const DAY: u32 = 12;
@@ -26,8 +26,7 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
         .sum())
 }
 
-/// Spec: directions that can be considered immediately adjacent
-/// to a point.
+/// Spec: directions that can be considered immediately adjacent to a point.
 /// Defined as left right up down.
 const ADJ_DIRECTIONS: &[Direction] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
 
@@ -36,7 +35,7 @@ const ADJ_DIRECTIONS: &[Direction] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
 /// - this_c: The color of the starting point
 /// - points: An iterator of all the points and their colors
 /// - adjacent_directions: An iterator of all the directions that are considered adjacent
-fn plots_connected_to<'a, T>(
+fn expand_plot_to_region<'a, T>(
     point: XY,
     this_c: &'a T,
     points: impl Iterator<Item = (T, XY)> + Clone,
@@ -86,68 +85,7 @@ where
     connected
 }
 
-/// Given a point, find all the points that are connected to it.
-///
-/// Connected points are points that are the same color and are adjacent to
-/// other points in the connected set.
-///
-/// This is the same as extract_connected_for_loop but uses iterators instead of
-/// for loops.  A curious thing is because of the need to add to the connected set
-/// while querying, this version is more complex than the for loop version because
-/// of needing to use a RefCell to keep the borrow checker happy.
-pub fn extract_connected<'a, T>(
-    point: XY,
-    this_c: &'a T,
-    points: impl Iterator<Item = (&'a T, XY)> + Clone,
-    adjacent_directions: impl Iterator<Item = Direction> + Clone + 'a,
-) -> HashSet<XY>
-where
-    T: std::cmp::PartialEq + 'a,
-{
-    // Iteratively build up a set of connected points.
-    let mut connected = HashSet::new();
-    // Add the starting point to the connected set.
-    connected.insert(point);
-    // Because we need to query and mutate this set during the generation of
-    // the connected set, we use a RefCell to keep the borrow checker happy.
-    let connected = RefCell::new(connected);
-
-    // Keep looking for points that haven't been
-    // seen and that are adjacent to points in this connected list.
-    loop {
-        // Points that could be considered (not in connected and are the same color)
-        let possible_points = points
-            .clone()
-            .filter(|(_, p)| !connected.borrow().contains(p))
-            .filter(|(c, _)| c == &this_c);
-
-        // Find all the points that are adjacent to a point in our set
-        let points_adjacented_to_connected = possible_points.filter_map(|(_, p)| {
-            // look at all of our adjacent points.
-            let mut adjacent_points = coordinates_from(p, adjacent_directions.clone());
-            // this is in the set if any adjacent point is in the connected set
-            let connected = connected.borrow();
-            adjacent_points
-                .any(|adj| connected.contains(&adj))
-                .then_some(p)
-        });
-
-        // Add all the points we found to the connected set.
-        let mut added = false;
-        points_adjacented_to_connected.for_each(|p| {
-            connected.borrow_mut().insert(p);
-            added = true;
-        });
-
-        // If we didn't find any new points, we are done.
-        if !added {
-            break;
-        }
-    }
-    connected.take()
-}
-
-/// Give our grid of plots, provide an iterator of all the regions (connected plots).
+/// Give our list of plots, provide an iterator of all the regions (connected plots).
 fn all_regions(
     plots: impl Iterator<Item = (char, XY)> + Clone,
 ) -> impl Iterator<Item = (char, HashSet<XY>)> {
@@ -161,8 +99,8 @@ fn all_regions(
         }
         seen.insert(point);
 
-        // Connected is a set of points that are connected to this point
-        let connected = plots_connected_to(
+        // Take this point and expand to all connected points.
+        let region = expand_plot_to_region(
             point,
             &this_c,
             plots.clone(),
@@ -170,28 +108,28 @@ fn all_regions(
         );
 
         // Mark all of these points as seen.
-        seen.extend(connected.iter());
-        Some((this_c, connected))
+        seen.extend(region.iter());
+        Some((this_c, region))
     })
 }
 
-/// Given a set of connected points, provide the fence sides for each point.
-fn wrap_fence(
-    connected_points: &HashSet<XY>,
-) -> impl Iterator<Item = (XY, HashSet<Direction>)> + '_ {
+/// Given a region of connected points, provide the fence sides for each point.
+fn wrap_fence(region: &HashSet<XY>) -> impl Iterator<Item = (XY, FenceSet)> + '_ {
     // Find all the fence sides for each point in the connected set.
-    connected_points.iter().map(|p| {
+    region.iter().map(|p| {
+        // Consider all sides of this plot, and filter out the sides that are
+        // connected to another plot.
         let fence_sides = ADJ_DIRECTIONS
             .iter()
             .copied()
             .filter(|d| {
                 // This is NOT a valid fence side if the cell in this direction
-                // is in our connected set.
+                // is in our connected set.  Tough to mentally parse, but it's right.
                 delta_xy(p, d)
-                    .map(|newxy| !connected_points.contains(&newxy))
+                    .map(|newxy| !region.contains(&newxy))
                     .unwrap_or(true)
             })
-            .collect::<HashSet<_>>();
+            .collect();
         (*p, fence_sides)
     })
 }
@@ -199,7 +137,7 @@ fn wrap_fence(
 /// Given a grid, provide all of the connected plots and their fence sides.
 fn all_plot_fences(
     plots: impl Iterator<Item = (char, XY)> + Clone,
-) -> impl Iterator<Item = HashMap<XY, HashSet<Direction>>> {
+) -> impl Iterator<Item = HashMap<XY, FenceSet>> {
     // Given a plot, determine how the fence is connected.
     all_regions(plots).map(|(_this_c, connected)| wrap_fence(&connected).collect())
 }
@@ -211,7 +149,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
     }
 
     let scores = all_plot_fences(input.plots()).map(|fences| {
-        // Count all the fence sides (part 1 answer)
+        // Count all the fence sides (permimeter)
         let fence_count = fences
             .values()
             .map(|fence_sides| fence_sides.len())
@@ -311,6 +249,7 @@ fn solve_part2(input: &str) -> Result<usize> {
 type Grid = Vec<Vec<char>>;
 type XY = (usize, usize);
 type Direction = (isize, isize);
+type FenceSet = HashSet<Direction>;
 
 /// Problem input
 #[derive(Debug)]
