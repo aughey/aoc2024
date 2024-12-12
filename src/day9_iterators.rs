@@ -9,7 +9,9 @@ pub const DAY: u32 = 9;
 pub struct DigitString<'a>(&'a str);
 impl<'a> DigitString<'a> {
     pub fn new(s: &'a str) -> Option<Self> {
-        s.chars().all(|c| c.is_digit(10)).then_some(DigitString(s))
+        s.chars()
+            .all(|c| c.is_ascii_digit())
+            .then_some(DigitString(s))
     }
 }
 impl<'a> IntoIterator for DigitString<'a> {
@@ -23,9 +25,9 @@ impl<'a> IntoIterator for DigitString<'a> {
 
 fn string_to_digits_validated(
     s: &str,
-) -> Option<impl Iterator<Item = u8> + Clone + DoubleEndedIterator + Clone + '_> {
+) -> Option<impl DoubleEndedIterator<Item = u8> + Clone + Clone + '_> {
     s.chars()
-        .all(|c| c.is_digit(10))
+        .all(|c| c.is_ascii_digit())
         .then_some(s.chars().map(|c| c.to_digit(10).unwrap() as u8))
 }
 
@@ -36,10 +38,10 @@ pub fn part1_generator(s: &str) -> Result<impl Iterator<Item = Block> + '_> {
     let forward = disk_map_to_blocks(forward_disk_generator(digits.clone())).enumerate();
 
     let last_id = (s.len() + 1) / 2 - 1;
-    let block_len: usize = digits.clone().map(|v| usize::from(v)).sum();
+    let block_len: usize = digits.clone().map(usize::from).sum();
 
     let backward_ids = {
-        let mut numbers = (0..=last_id).into_iter().rev();
+        let mut numbers = (0..=last_id).rev();
         move || numbers.next().unwrap()
     };
 
@@ -123,11 +125,11 @@ pub enum Block {
     Empty,
     Data(u64),
 }
-impl ToString for Block {
-    fn to_string(&self) -> String {
+impl Display for Block {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Block::Empty => '.'.to_string(),
-            Block::Data(x) => x.to_string(),
+            Block::Empty => write!(f, "."),
+            Block::Data(x) => write!(f, "{}", x),
         }
     }
 }
@@ -140,7 +142,7 @@ pub enum DiskMap {
 pub fn forward_disk_generator(
     digits: impl Iterator<Item = u8> + Clone,
 ) -> impl Iterator<Item = DiskMap> + Clone {
-    let mut numbers = (0..).into_iter();
+    let mut numbers = 0..;
     let id_generator = move || numbers.next().unwrap();
     disk_generator(digits, DiskMap::Data(Default::default()), id_generator)
 }

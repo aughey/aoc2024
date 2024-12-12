@@ -26,7 +26,7 @@ impl Add for Score {
 /// Compute the score for a trail starting at `head`.
 /// A score is defined as the number of reachable ends, and the
 /// number of unique paths.
-fn score_for_trail<'a>(head: Cell<'a>) -> Score {
+fn score_for_trail(head: Cell) -> Score {
     // Keep track of all the unique ends we reach
     let mut reached_ends = HashSet::new();
     // Recursively walk the trail, returns the rating and accumulates the ends
@@ -129,7 +129,7 @@ impl Data {
             row.iter()
                 .enumerate()
                 // Heads are height of 0
-                .filter_map(move |(x, &height)| (height == 0).then(|| Cell { x, y, grid }))
+                .filter_map(move |(x, &height)| (height == 0).then_some(Cell { x, y, grid }))
         })
     }
 }
@@ -185,7 +185,7 @@ impl Cell<'_> {
             let y = self.y.checked_add_signed(*dy)?;
             let this_height = *self.grid.get(y)?.get(x)?;
 
-            is_valid_next_height(cur_height, this_height).then(|| Cell {
+            is_valid_next_height(cur_height, this_height).then_some(Cell {
                 x,
                 y,
                 grid: self.grid,

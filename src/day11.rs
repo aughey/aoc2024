@@ -58,7 +58,7 @@ pub fn blink(stones: Vec<u64>) -> Result<Vec<u64>> {
 }
 
 fn solve_part1_impl(input: &Data) -> Result<usize> {
-    return solve_depth(input.stones.iter().copied(), 25);
+    solve_depth(input.stones.iter().copied(), 25)
     // let mut stones = input.stones.clone();
 
     // for _ in 0..25 {

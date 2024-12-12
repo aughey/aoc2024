@@ -1,7 +1,7 @@
 use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
-use std::{collections::HashSet, fmt::Display, sync::atomic::fence};
+use std::{collections::HashSet, fmt::Display};
 use tracing::info;
 
 pub const DAY: u32 = 12;
@@ -147,7 +147,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             .collect::<Vec<_>>();
 
         // need to walk again.
-        let mut fence_count = fences
+        let fence_count = fences
             .iter()
             .map(|(_, fence_sides)| fence_sides.len())
             .sum::<usize>();
