@@ -6,78 +6,24 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
 };
-use tracing::info;
 
 pub const DAY: u32 = 12;
 
+/// Solve part 1 by iterator through all of the plots, getting
+/// the number of fences and area, adding up all of those values.
 fn solve_part1_impl(input: &Data) -> Result<usize> {
-    // make a grid of nones
-    let mut seen: HashSet<XY> = HashSet::new();
+    Ok(all_plot_fences(input.plots())
+        .map(|fences| {
+            // Count all the fence sides (part 1 answer)
+            let fence_count = fences
+                .values()
+                .map(|fence_sides| fence_sides.len())
+                .sum::<usize>();
 
-    let grid = &input.grid;
-
-    let points = grid
-        .iter()
-        .enumerate()
-        .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, _)| (x, y)));
-
-    let scores = points.clone().filter_map(move |point| {
-        if !seen.insert(point) {
-            return None;
-        }
-        seen.insert(point);
-
-        let this_c = input.grid[point.1][point.0];
-        info!("point: {:?} {}", point, this_c);
-
-        let mut connected = vec![point];
-        loop {
-            let mut found = false;
-            for p in points
-                .clone()
-                .filter(|p| grid[p.1][p.0] == this_c)
-                .filter(|p| !seen.contains(p))
-                .filter(|p| connected.iter().any(|c| next_to(c, p)))
-                .collect::<Vec<_>>()
-            {
-                seen.insert(p);
-                connected.push(p);
-                found = true
-            }
-            if !found {
-                break;
-            }
-        }
-        info!("connected: {this_c} {:?}", connected);
-        const DIRECTIONS: &[Direction] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
-        let fence_count = connected
-            .iter()
-            .map(|p| {
-                let fence_sides = DIRECTIONS.len()
-                    - DIRECTIONS
-                        .iter()
-                        .filter_map(|d| {
-                            let x = p.0.checked_add_signed(d.0)?;
-                            let y = p.1.checked_add_signed(d.1)?;
-                            let test_c = grid.get(y)?.get(x)?;
-                            info!("  checking:  {:?}", (x, y));
-                            if test_c == &this_c {
-                                info!("    TRUE");
-                                Some(())
-                            } else {
-                                None
-                            }
-                        })
-                        .count();
-                info!("  fence_count: {:?} {}", p, fence_sides);
-                fence_sides
-            })
-            .sum::<usize>();
-
-        Some((this_c, fence_count, connected.len()))
-    });
-
-    Ok(scores.map(|s| s.1 * s.2).sum())
+            let area = fences.keys().len();
+            fence_count * area
+        })
+        .sum())
 }
 
 /// Spec: directions that can be considered immediately adjacent
@@ -85,18 +31,16 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
 /// Defined as left right up down.
 const ADJ_DIRECTIONS: &[Direction] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
 
-/// Are two points next to each other?
-fn next_to(point0: &XY, point1: &XY) -> bool {
-    ADJ_DIRECTIONS
-        .iter()
-        .any(|d| delta_xy(point0, d) == Some(*point1))
-}
-
-fn extract_connected_for_loop<'a, T>(
+/// Given a point and color, find all the points that are connected to it.
+/// - point: The starting point
+/// - this_c: The color of the starting point
+/// - points: An iterator of all the points and their colors
+/// - adjacent_directions: An iterator of all the directions that are considered adjacent
+fn plots_connected_to<'a, T>(
     point: XY,
     this_c: &'a T,
-    points: impl Iterator<Item = (&'a T, XY)> + Clone,
-    adjacent_directions: impl Iterator<Item = &'a Direction> + Clone + 'a,
+    points: impl Iterator<Item = (T, XY)> + Clone,
+    adjacent_directions: impl Iterator<Item = Direction> + Clone + 'a,
 ) -> HashSet<XY>
 where
     T: std::cmp::PartialEq + 'a,
@@ -109,9 +53,10 @@ where
     // Keep looking for points that are our same color, haven't been
     // already added to our set, and are adjacent to any point in this connected list.
     loop {
-        // Points that could be considered (not in connected and are the same color)
-        let possible_points = points.clone().filter(|(c, _)| c == &this_c);
+        // Points that could be considered (are the same color)
+        let possible_points = points.clone().filter(|(c, _)| c == this_c);
 
+        // A flag of whether we added any points to the connected set.
         let mut added = false;
         for (_, p) in possible_points {
             // It's already in the set, skip it.
@@ -122,6 +67,8 @@ where
             // Find all the points that are adjacent to a point in our set
             // look at all of our adjacent points.
             let adjacent_points = coordinates_from(p, adjacent_directions.clone());
+
+            // If any of these adjacent points are in the connected set, add this point.
             for adj_p in adjacent_points {
                 if connected.contains(&adj_p) {
                     connected.insert(p);
@@ -152,7 +99,7 @@ pub fn extract_connected<'a, T>(
     point: XY,
     this_c: &'a T,
     points: impl Iterator<Item = (&'a T, XY)> + Clone,
-    adjacent_directions: impl Iterator<Item = &'a Direction> + Clone + 'a,
+    adjacent_directions: impl Iterator<Item = Direction> + Clone + 'a,
 ) -> HashSet<XY>
 where
     T: std::cmp::PartialEq + 'a,
@@ -200,63 +147,75 @@ where
     connected.take()
 }
 
-fn solve_part2_impl(input: &Data) -> Result<usize> {
-    // make a grid of nones
+/// Give our grid of plots, provide an iterator of all the regions (connected plots).
+fn all_regions(
+    plots: impl Iterator<Item = (char, XY)> + Clone,
+) -> impl Iterator<Item = (char, HashSet<XY>)> {
+    // Keep track of all the points we've seen.
     let mut seen: HashSet<XY> = HashSet::new();
 
-    let grid = &input.grid;
-
-    let points = grid
-        .iter()
-        .enumerate()
-        .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (c, (x, y))));
-
-    struct GroupScore {
-        area: usize,
-        permimeter: usize,
-    }
-
-    let scores = points.clone().filter_map(move |(this_c, point)| {
+    plots.clone().filter_map(move |(this_c, point)| {
+        // Skip if we've already seen this point.
         if !seen.insert(point) {
             return None;
         }
         seen.insert(point);
 
-        info!("point: {:?} {}", point, this_c);
-
         // Connected is a set of points that are connected to this point
-        let connected =
-            extract_connected_for_loop(point, this_c, points.clone(), ADJ_DIRECTIONS.iter());
+        let connected = plots_connected_to(
+            point,
+            &this_c,
+            plots.clone(),
+            ADJ_DIRECTIONS.iter().copied(),
+        );
 
         // Mark all of these points as seen.
         seen.extend(connected.iter());
+        Some((this_c, connected))
+    })
+}
 
-        info!("connected: {this_c} {:?}", connected);
-        // Find all the fence sides for each point in the connected set.
-        let fences: HashMap<XY, HashSet<&Direction>> = connected
+/// Given a set of connected points, provide the fence sides for each point.
+fn wrap_fence(
+    connected_points: &HashSet<XY>,
+) -> impl Iterator<Item = (XY, HashSet<Direction>)> + '_ {
+    // Find all the fence sides for each point in the connected set.
+    connected_points.iter().map(|p| {
+        let fence_sides = ADJ_DIRECTIONS
             .iter()
-            .map(|p| {
-                let fence_sides = ADJ_DIRECTIONS
-                    .iter()
-                    .filter(|d| {
-                        // This is NOT a valid fence side if the cell in this direction
-                        // is in our connected set.
-                        delta_xy(p, d)
-                            .map(|newxy| !connected.contains(&newxy))
-                            .unwrap_or(true)
-                    })
-                    .collect::<HashSet<_>>();
-                (*p, fence_sides)
+            .copied()
+            .filter(|d| {
+                // This is NOT a valid fence side if the cell in this direction
+                // is in our connected set.
+                delta_xy(p, d)
+                    .map(|newxy| !connected_points.contains(&newxy))
+                    .unwrap_or(true)
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<HashSet<_>>();
+        (*p, fence_sides)
+    })
+}
 
+/// Given a grid, provide all of the connected plots and their fence sides.
+fn all_plot_fences(
+    plots: impl Iterator<Item = (char, XY)> + Clone,
+) -> impl Iterator<Item = HashMap<XY, HashSet<Direction>>> {
+    // Given a plot, determine how the fence is connected.
+    all_regions(plots).map(|(_this_c, connected)| wrap_fence(&connected).collect())
+}
+
+fn solve_part2_impl(input: &Data) -> Result<usize> {
+    struct GroupScore {
+        area: usize,
+        permimeter: usize,
+    }
+
+    let scores = all_plot_fences(input.plots()).map(|fences| {
         // Count all the fence sides (part 1 answer)
         let fence_count = fences
             .values()
             .map(|fence_sides| fence_sides.len())
             .sum::<usize>();
-
-        info!("   starting fence_count: {this_c} {}", fence_count);
 
         // Our subtract pattern considers a cell in an adjacent direction and
         // will subtract a fence for each fence side in this pattern that is
@@ -309,12 +268,10 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         // Subtract fences that contribute to the continuation of a fence line.
         let fence_count = fence_count - subtract;
 
-        info!("  fence_count: {this_c} {}", fence_count);
-
-        Some(GroupScore {
-            area: connected.len(),
+        GroupScore {
+            area: fences.keys().len(),
             permimeter: fence_count,
-        })
+        }
     });
 
     Ok(scores.map(|s| s.area * s.permimeter).sum())
@@ -332,9 +289,9 @@ fn delta_xy(xy: &XY, delta: &Direction) -> Option<XY> {
 /// the valid coordinates that are in these delta directions.
 fn coordinates_from<'a>(
     xy: XY,
-    directions: impl Iterator<Item = &'a Direction> + 'a,
+    directions: impl Iterator<Item = Direction> + 'a,
 ) -> impl Iterator<Item = XY> + 'a {
-    directions.filter_map(move |d| delta_xy(&xy, d))
+    directions.filter_map(move |d| delta_xy(&xy, &d))
 }
 
 /// Solution to part 1
@@ -361,6 +318,12 @@ struct Data {
     grid: Grid,
 }
 impl Data {
+    fn plots(&self) -> impl Iterator<Item = (char, XY)> + Clone + '_ {
+        self.grid
+            .iter()
+            .enumerate()
+            .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (*c, (x, y))))
+    }
     fn parse(s: &str) -> Result<Self> {
         // Create the generator for the grid
         let grid = s.lines().map(|line| line.chars());
