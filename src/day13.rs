@@ -74,6 +74,7 @@ fn solve_machine(m: &Machine) -> Result<(usize, usize)> {
                 .get_model()
                 .ok_or_else(|| anyhow::anyhow!("no model"))?;
             info!("model: {:?}", model);
+            info!("stats: {:?}", solver.get_statistics());
             let aans = model.eval(&apress, true).unwrap().as_i64().unwrap();
             let bans = model.eval(&bpress, true).unwrap().as_i64().unwrap();
             Ok((aans as usize, bans as usize))
