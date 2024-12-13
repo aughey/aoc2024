@@ -1,5 +1,3 @@
-use petgraph::adj;
-
 use crate::enumerate_grid;
 
 pub fn demo_fn_his() {
@@ -72,20 +70,18 @@ pub fn demo_fn_mine2() {
         vec!['7', '8', '9'],
     ];
 
-    let cells = grid
-        .iter()
-        .enumerate()
-        .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (c, x, y)));
+    let grid = &grid;
+
+    let delta_cell = |x: usize, y: usize, dx: isize, dy: isize| {
+        let row = x.checked_add_signed(dx)?;
+        let col = y.checked_add_signed(dy)?;
+        grid.get(col)?.get(row)
+    };
 
     let mut same_neighbors = 0usize;
-    for (c, x, y) in cells {
+    for (x, y, c) in enumerate_grid(grid) {
         for dir in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-            let adj = || {
-                let row = x.checked_add_signed(dir.0)?;
-                let col = y.checked_add_signed(dir.1)?;
-                grid.get(col)?.get(row)
-            };
-            if let Some(adj_cell) = adj() {
+            if let Some(adj_cell) = delta_cell(x, y, dir.0, dir.1) {
                 if adj_cell == c {
                     same_neighbors += 1;
                 }
@@ -105,20 +101,47 @@ pub fn demo_fn_mine3() {
 
     let grid = &grid;
 
-    let cells = enumerate_grid(grid);
-    let same_adj_cells = cells.flat_map(|(x, y, c)| {
-        let adj_cells = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    let delta_cell = |x: usize, y: usize, dx: isize, dy: isize| {
+        let row = x.checked_add_signed(dx)?;
+        let col = y.checked_add_signed(dy)?;
+        grid.get(col)?.get(row)
+    };
+
+    let adj_cells = |cur_x: usize, cur_y: usize| {
+        [(1, 0), (-1, 0), (0, 1), (0, -1)]
             .iter()
-            .filter_map(move |(dx, dy)| {
-                let row = x.checked_add_signed(*dx)?;
-                let col = y.checked_add_signed(*dy)?;
-                let their_c = grid.get(col)?.get(row)?;
-                Some((row, col, their_c))
-            });
-        let siblings = adj_cells.filter(move |(_, _, their_c)| *their_c == c);
-        siblings
-    });
-    let sibling_count = same_adj_cells.count();
+            .filter_map(move |(dx, dy)| delta_cell(cur_x, cur_y, *dx, *dy))
+    };
+
+    let same_adj_cells = |cur_x: usize, cur_y: usize, c: char| {
+        adj_cells(cur_x, cur_y).filter(move |adj_c| **adj_c == c)
+    };
+
+    let sibling_count = enumerate_grid(grid)
+        .map(|(x, y, c)| same_adj_cells(x, y, *c).count())
+        .sum::<usize>();
+
+    println!("Same neighbors: {}", sibling_count);
+
+    let sibling_count = enumerate_grid(grid)
+        .flat_map(|(x, y, c)| same_adj_cells(x, y, *c))
+        .count();
+
+    println!("Same neighbors: {}", sibling_count);
+
+    let mut sibling_count = 0;
+    for (x, y, c) in enumerate_grid(grid) {
+        for _ in same_adj_cells(x, y, *c) {
+            sibling_count += 1;
+        }
+    }
+    println!("Same neighbors: {}", sibling_count);
+
+    let mut sibling_count = 0;
+    for (x, y, c) in enumerate_grid(grid) {
+        sibling_count += same_adj_cells(x, y, *c).count();
+    }
+
     println!("Same neighbors: {}", sibling_count);
 }
 
@@ -131,23 +154,25 @@ pub fn demo_fn_mine4() {
 
     let grid = &grid;
 
+    let delta_cell = |x: usize, y: usize, dx: isize, dy: isize| {
+        let row = x.checked_add_signed(dx)?;
+        let col = y.checked_add_signed(dy)?;
+        grid.get(col)?.get(row)
+    };
+
     let adj_cells = |x: usize, y: usize| {
         [(1, 0), (-1, 0), (0, 1), (0, -1)]
             .iter()
-            .filter_map(move |(dx, dy)| {
-                let row = x.checked_add_signed(*dx)?;
-                let col = y.checked_add_signed(*dy)?;
-                let their_c = grid.get(col)?.get(row)?;
-                Some((row, col, their_c))
-            })
+            .filter_map(move |(dx, dy)| delta_cell(x, y, *dx, *dy))
     };
+
+    let common_adj_cells =
+        |x: usize, y: usize, c: char| adj_cells(x, y).filter(move |their_c| **their_c == c);
 
     let mut sibling_count = 0;
     for (x, y, c) in enumerate_grid(grid) {
-        for (_row, _col, their_c) in adj_cells(x, y) {
-            if their_c == c {
-                sibling_count += 1;
-            }
+        for _ in common_adj_cells(x, y, *c) {
+            sibling_count += 1;
         }
     }
     println!("Same neighbors: {}", sibling_count);
