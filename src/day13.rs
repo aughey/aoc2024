@@ -37,9 +37,8 @@ struct Data {
 }
 impl Data {
     fn parse(s: &str) -> Result<Self> {
-        // XXX: Do actual parsing here.
         let s = s.lines();
-        // XXX: Update the returned Data to include the parsed data.
+
         Ok(Data { _len: s.count() })
     }
 }
