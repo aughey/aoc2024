@@ -4,7 +4,6 @@ use aoc_runner_derive::aoc;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
-    hash::Hash,
 };
 
 pub const DAY: u32 = 12;
@@ -35,14 +34,14 @@ const ADJ_DIRECTIONS: &[Direction] = &[(0, 1), (1, 0), (0, -1), (-1, 0)];
 /// - this_c: The color of the starting point
 /// - points: An iterator of all the points and their colors
 /// - adjacent_directions: An iterator of all the directions that are considered adjacent
-fn expand_plot_to_region<'a, T>(
+fn expand_plot_to_region<T>(
     point: XY,
-    this_c: &'a T,
+    this_c: T,
     points: impl Iterator<Item = (T, XY)> + Clone,
-    adjacent_directions: impl Iterator<Item = Direction> + Clone + 'a,
-) -> HashSet<XY>
+    adjacent_directions: impl Iterator<Item = Direction> + Clone,
+) -> Region
 where
-    T: std::cmp::PartialEq + 'a,
+    T: std::cmp::PartialEq,
 {
     // Iteratively build up a set of connected points.
     let mut connected = HashSet::new();
@@ -53,7 +52,7 @@ where
     // already added to our set, and are adjacent to any point in this connected list.
     loop {
         // Points that could be considered (are the same color)
-        let possible_points = points.clone().filter(|(c, _)| c == this_c);
+        let possible_points = points.clone().filter(|(c, _)| c == &this_c);
 
         // A flag of whether we added any points to the connected set.
         let mut added = false;
@@ -88,9 +87,9 @@ where
 /// Give our list of plots, provide an iterator of all the regions (connected plots).
 fn all_regions(
     plots: impl Iterator<Item = (char, XY)> + Clone,
-) -> impl Iterator<Item = (char, HashSet<XY>)> {
+) -> impl Iterator<Item = (char, Region)> {
     // Keep track of all the points we've seen.
-    let mut seen: HashSet<XY> = HashSet::new();
+    let mut seen: Region = HashSet::new();
 
     plots.clone().filter_map(move |(this_c, point)| {
         // Skip if we've already seen this point.
@@ -100,12 +99,8 @@ fn all_regions(
         seen.insert(point);
 
         // Take this point and expand to all connected points.
-        let region = expand_plot_to_region(
-            point,
-            &this_c,
-            plots.clone(),
-            ADJ_DIRECTIONS.iter().copied(),
-        );
+        let region =
+            expand_plot_to_region(point, this_c, plots.clone(), ADJ_DIRECTIONS.iter().copied());
 
         // Mark all of these points as seen.
         seen.extend(region.iter());
@@ -114,7 +109,7 @@ fn all_regions(
 }
 
 /// Given a region of connected points, provide the fence sides for each point.
-fn wrap_fence(region: &HashSet<XY>) -> impl Iterator<Item = (XY, FenceSet)> + '_ {
+fn wrap_fence(region: &Region) -> impl Iterator<Item = (XY, FenceSet)> + '_ {
     // Find all the fence sides for each point in the connected set.
     region.iter().map(|p| {
         // Consider all sides of this plot, and filter out the sides that are
@@ -249,6 +244,7 @@ fn solve_part2(input: &str) -> Result<usize> {
 type Grid = Vec<Vec<char>>;
 type XY = (usize, usize);
 type Direction = (isize, isize);
+type Region = HashSet<XY>;
 type FenceSet = HashSet<Direction>;
 
 /// Problem input
