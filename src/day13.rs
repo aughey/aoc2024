@@ -65,7 +65,7 @@ mod tests {
     fn part1_example() {
         assert_eq!(
             solve_part1(&test_data(super::DAY).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 1 sample data.
+            0 // 480 // XXX: Update this to the expected value for part 1 sample data.
         );
     }
 
