@@ -1,5 +1,6 @@
 pub mod day1;
 pub mod day10;
+pub mod day10_video;
 pub mod day11;
 pub mod day12;
 pub mod day13;
@@ -17,6 +18,17 @@ pub use anyhow::Result;
 use aoc_runner_derive::aoc_lib;
 
 aoc_lib! { year = 2024 }
+
+pub fn enumerate_grid<T, INNER>(
+    grid: impl IntoIterator<Item = INNER>,
+) -> impl Iterator<Item = (usize, usize, T)>
+where
+    INNER: IntoIterator<Item = T>,
+{
+    grid.into_iter()
+        .enumerate()
+        .flat_map(|(y, row)| row.into_iter().enumerate().map(move |(x, c)| (x, y, c)))
+}
 
 /// Read the problem sample test for a day from the input directory.
 pub fn test_data(day: u32) -> Result<String> {
