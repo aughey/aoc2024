@@ -120,10 +120,10 @@ impl Robot {
 pub fn move_value(value: usize, direction: isize, limit: usize, steps: usize) -> Result<usize> {
     // Move value will take value, add direction * steps, and wrap it around limit
     // It can go negative, so the wrapping needs to be done properly
-    let value = value as isize;
-    let direction = direction as isize;
-    let limit = limit as isize;
-    let steps = steps as isize;
+    let value = isize::try_from(value)?;
+    let direction = isize::try_from(direction)?;
+    let limit = isize::try_from(limit)?;
+    let steps = isize::try_from(steps)?;
 
     Ok(((value + direction * steps) % limit + limit) as usize % limit as usize)
 }
