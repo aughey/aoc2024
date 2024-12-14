@@ -62,21 +62,17 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             .iter()
             .map(|r| r.step(&board_size, 1))
             .collect::<Result<Vec<_>>>()?;
-        // Look for more than  robots in a row
-        let mut found = false;
-        for y in 0..board_size.1 {
-            let x_locations = robots
-                .iter()
-                .filter(|r| r.pos.1 == y)
-                .map(|r| r.pos.0)
-                .collect::<HashSet<_>>();
+        // Look for `any` for that has ROBOT_COUNT robots in a row
+        let mut all_rows = 0..board_size.1;
+        let found = all_rows.any(|y| {
+            let robots_in_row = robots.iter().filter(|r| r.pos.1 == y);
+            let occupied_x_locations = robots_in_row.map(|r| r.pos.0).collect::<HashSet<_>>();
 
-            for x in 0..board_size.0 {
-                if (0..10).all(|i| x_locations.contains(&(x + i))) {
-                    found = true;
-                }
-            }
-        }
+            const ROBOT_COUNT: usize = 20;
+            // Walk across the row, create a ROBOT_COUNT window, and check if a robot is in each
+            (0..board_size.0 - ROBOT_COUNT)
+                .any(|x| (x..x + ROBOT_COUNT).all(|i| occupied_x_locations.contains(&(i))))
+        });
         if found {
             println!("Step {}", s);
             print_board(robots.iter(), &board_size);
