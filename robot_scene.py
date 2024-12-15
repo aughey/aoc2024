@@ -148,3 +148,45 @@ class CreateCircle(MovingCameraScene):
         self.play(FadeOut(arrow), FadeOut(box), run_time=speed)
 
 
+
+class MultiGrids(MovingCameraScene):
+    def construct(self):
+        grid_size = (10,10)
+
+        circle_size = 0.25
+        grid_of_circles = VGroup(*[
+            Square().scale(circle_size)
+            for j in range(100)
+        ]).arrange_in_grid(*grid_size, buff=0.1)
+
+        self.play(Create(grid_of_circles, run_time=2))
+        self.wait()
+        #self.animate(0, 1, grid_of_circles, speed=1)
+        #self.animate(1, 9, grid_of_circles, speed=0.1)
+
+        oldrobots = None
+        cross = None
+        for _ in range(100):
+            rt = 0.1
+
+            filled_positions = []
+            for y in range(10):
+                for i in range(3):
+                    for x in range(3):
+                        x = x + i*4
+                        if x < 10 and random.getrandbits(1):
+                            filled_positions.append([x,y])
+
+            # Animate filling in the circles
+            robots = VGroup(*[
+                SVGMobject("robot").scale(0.20).move_to(grid_of_circles[x + y*10]).set_color(ORANGE)
+                for x, y in filled_positions
+            ])
+            self.play(FadeOut(oldrobots),FadeOut(cross),FadeIn(robots), lag_ratio=0.1, run_time=rt)
+            # Draw a big red over the entire board
+            cross = MathTex("\\times")
+            cross.move_to(grid_of_circles).set_color(RED)
+            # size to the entire board
+            cross.scale(20)
+            self.play(FadeIn(cross), run_time=rt)
+            oldrobots = robots
