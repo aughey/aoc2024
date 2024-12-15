@@ -1,12 +1,13 @@
 use crate::enumerate_grid;
 
 pub fn demo_fn_his() {
-    let grid = vec![
+    let grid = [
         vec!['1', '2', '3'],
         vec!['4', '5', '6'],
         vec!['7', '8', '9'],
     ];
 
+    #[allow(clippy::needless_range_loop)]
     for y in 0..grid.len() {
         for x in 0..grid[y].len() {
             println!("{}: ({}, {})", grid[y][x], x, y);
@@ -15,7 +16,7 @@ pub fn demo_fn_his() {
 }
 
 pub fn demo_fn_his2() {
-    let grid = vec![
+    let grid = [
         vec!['1', '2', '3'],
         vec!['4', '5', '6'],
         vec!['7', '8', '9'],

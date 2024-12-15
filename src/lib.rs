@@ -19,6 +19,9 @@ pub mod day9_iterators;
 pub use anyhow::Result;
 use aoc_runner_derive::aoc_lib;
 
+type Position = (usize, usize);
+type Direction = (isize, isize);
+
 aoc_lib! { year = 2024 }
 
 pub fn enumerate_grid<T, INNER>(

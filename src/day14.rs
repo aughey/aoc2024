@@ -117,7 +117,6 @@ pub fn move_value(value: usize, direction: isize, limit: usize, steps: usize) ->
     // Move value will take value, add direction * steps, and wrap it around limit
     // It can go negative, so the wrapping needs to be done properly
     let value = isize::try_from(value)?;
-    let direction = isize::try_from(direction)?;
     let limit = isize::try_from(limit)?;
     let steps = isize::try_from(steps)?;
 

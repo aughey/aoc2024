@@ -1,25 +1,35 @@
-use crate::Result;
+use crate::{Direction, Position, Result};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::fmt::Display;
-use tracing::info;
+use tracing::debug;
 
 pub const DAY: u32 = 15;
 
+type Map = Vec<Vec<Cell>>;
+
 trait Get {
-    fn get_cell(&self, xy: (usize, usize)) -> Option<&Cell>;
-    fn get_cell_mut(&mut self, xy: (usize, usize)) -> Option<&mut Cell>;
-}
-impl Get for Vec<Vec<Cell>> {
-    fn get_cell(&self, xy: (usize, usize)) -> Option<&Cell> {
-        Some(self.get(xy.1)?.get(xy.0)?)
+    fn get_cell(&self, xy: &Position) -> Option<&Cell>;
+    fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut Cell>;
+    fn get_cell_result(&self, xy: &Position) -> Result<&Cell> {
+        self.get_cell(xy)
+            .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
     }
-    fn get_cell_mut(&mut self, xy: (usize, usize)) -> Option<&mut Cell> {
-        Some(self.get_mut(xy.1)?.get_mut(xy.0)?)
+    fn get_cell_mut_result(&mut self, xy: &Position) -> Result<&mut Cell> {
+        self.get_cell_mut(xy)
+            .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
+    }
+}
+impl Get for Map {
+    fn get_cell(&self, xy: &Position) -> Option<&Cell> {
+        self.get(xy.1)?.get(xy.0)
+    }
+    fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut Cell> {
+        self.get_mut(xy.1)?.get_mut(xy.0)
     }
 }
 
-fn playerxy(map: &Vec<Vec<Cell>>) -> Option<(usize, usize)> {
+fn playerxy(map: &Map) -> Option<Position> {
     map.iter()
         .enumerate()
         .flat_map(|(y, row)| {
@@ -41,30 +51,27 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     let mut player_xy = player_xy;
 
     for m in input.movements.iter() {
-        let direction = match m {
-            Movement::Up => (0, -1),
-            Movement::Down => (0, 1),
-            Movement::Left => (-1, 0),
-            Movement::Right => (1, 0),
-        };
-
-        if let Ok(xy) = move_cell(&mut map, player_xy, direction) {
-            player_xy = xy;
+        //print_map(&map);
+        let direction = m.direction();
+        if can_move_in_direction(&map, &player_xy, &direction)? {
+            move_cell(&mut map, &player_xy, &direction)?;
+            player_xy = add_xy_result(&player_xy, &direction)?;
         }
     }
 
+    print_map(&map);
     // evaluate the map
     let boxes = map.iter().enumerate().flat_map(|(y, row)| {
-        row.iter()
-            .enumerate()
-            .filter_map(move |(x, cell)| matches!(cell, Cell::Box).then(|| (x, y)))
+        row.iter().enumerate().filter_map(move |(x, cell)| {
+            matches!(cell, Cell::Box | Cell::BoxLeft).then_some((x, y))
+        })
     });
     let gps = boxes.map(|(x, y)| x + 100 * y).sum();
 
     Ok(gps)
 }
 
-fn print_map(map: &Vec<Vec<Cell>>) {
+fn print_map(map: &Map) {
     for row in map {
         for cell in row {
             let c = match cell {
@@ -80,131 +87,80 @@ fn print_map(map: &Vec<Vec<Cell>>) {
         println!();
     }
 }
-type Position = (usize, usize);
-struct Movement {
-    from: Position,
-    to: Position,
+
+fn add_xy_result(cur_cell: &Position, direction: &Direction) -> Result<Position> {
+    Ok((
+        cur_cell
+            .0
+            .checked_add_signed(direction.0)
+            .ok_or_else(|| anyhow::anyhow!("invalid movement"))?,
+        cur_cell
+            .1
+            .checked_add_signed(direction.1)
+            .ok_or_else(|| anyhow::anyhow!("invalid movement"))?,
+    ))
 }
 
-fn move_cell(
-    map: &mut Vec<Vec<Cell>>,
-    from: (usize, usize),
-    direction: (isize, isize),
-) -> Result<Vec<Movement>> {
-    let newxy = add_xy(from, direction).ok_or_else(|| anyhow::anyhow!("invalid movement"))?;
-    let me = map
-        .get_cell(from)
-        .ok_or_else(|| anyhow::anyhow!("no cell"))?
-        .clone();
-
-    let nextcell = map
-        .get_cell(newxy)
-        .ok_or_else(|| anyhow::anyhow!("no cell"))?
-        .clone();
-
-    // Easy case for left and right
-    if direction == (1, 0) || direction == (-1, 0) {
-        match me {
-            Cell::BoxLeft => {
-                if direction == (0, 1) {
-                    // try moving the box right
-                    assert!(matches!(nextcell, Cell::BoxRight));
-                    let mut movements = move_cell(map, newxy, direction)?;
-                    *map.get_cell_mut(from).unwrap() = Cell::Empty;
-                    *map.get_cell_mut(newxy).unwrap() = Cell::BoxLeft;
-                    movements.push(Movement { from, to: newxy });
-                    return Ok(movements);
+fn can_move_in_direction(map: &Map, cur_xy: &Position, direction: &Direction) -> Result<bool> {
+    debug!(
+        "Checking if {:?} can move from {:?} in direction {:?}",
+        map.get_cell_result(cur_xy)?,
+        cur_xy,
+        direction
+    );
+    match map
+        .get_cell(cur_xy)
+        .ok_or_else(|| anyhow::anyhow!("Cannot get current cell"))?
+    {
+        Cell::Wall => Ok(false),
+        Cell::Empty => Ok(true),
+        cell => {
+            for newxy in cell.all_next_xy_in_direction(cur_xy, direction) {
+                if !can_move_in_direction(map, &newxy, direction)? {
+                    return Ok(false);
                 }
             }
-            Cell::BoxRight => {
-                if direction == (0, -1) {
-                    // try moving the box left
-                    assert!(matches!(nextcell, Cell::BoxLeft));
-                    let movements = move_cell(map, newxy, direction)?;
-                    *map.get_cell_mut(from).unwrap() = Cell::Empty;
-                    *map.get_cell_mut(newxy).unwrap() = Cell::BoxRight;
-                    movements.push(Movement { from, to: newxy });
-                }
-            }
-            Cell::Empty => return Ok(vec![]),
-            Cell::Box => {
-                // Try to move the box
-                let movements = move_cell(map, newxy, direction)?;
-                *map.get_cell_mut(from).unwrap() = Cell::Empty;
-                *map.get_cell_mut(newxy).unwrap() = Cell::Box;
-                movements.push(Movement { from, to: newxy });
-                return Ok(movements);
-            }
-            _ => (),
+            Ok(true)
         }
     }
+}
 
-    // Look at that cell and make way
-    let movement = match nextcell {
-        Cell::Wall => anyhow::bail!("cannot move into wall"),
-        Cell::Box => {
-            // Try to move the box
-            (move_cell(map, newxy, direction), Ok(vec![]))
-        }
-        Cell::Empty => {
-            // good
-            (Ok(vec![]), Ok(vec![]))
-        }
-        Cell::Player => panic!("Shouldn't call move_cell to a player"),
-        Cell::BoxLeft => {
-            // try moving the box left
-            let left = move_cell(map, newxy, direction);
-            // try moving box right
-            let right = move_cell(map, add_xy(newxy, (1, 0)).unwrap(), direction);
-            (left, right)
-        }
-        Cell::BoxRight => {
-            let left = move_cell(map, add_xy(newxy, (-1, 0)).unwrap(), direction);
-            let right = move_cell(map, newxy, direction);
-            (left, right)
-        }
+fn move_cell(map: &mut Map, from: &Position, direction: &Direction) -> Result<()> {
+    //    assert!(can_move_in_direction(map, from, direction)?);
+
+    let my_cell = match map.get_cell_result(from)? {
+        Cell::Empty => return Ok(()),
+        Cell::Wall => anyhow::bail!("cannot move a wall cell"),
+        c => c.clone(),
     };
 
-    match (movement.0, movement.1) {
-        (Ok(movements), Err(_)) => {
-            // Unmove
-            // move the box
-            *map.get_cell_mut(from).unwrap() = Cell::Empty;
-            *map.get_cell_mut(newxy).unwrap() = Cell::Box;
-            let mut movements = movements;
-            movements.push(newxy);
-            Ok(movements)
-        }
-        (Err(_), Ok(movements)) => {
-            // move the box
-            *map.get_cell_mut(from).unwrap() = Cell::Empty;
-            *map.get_cell_mut(newxy).unwrap() = Cell::Box;
-            let mut movements = movements;
-            movements.push(newxy);
-            Ok(movements)
-        }
-        (Err(e), Err(_)) => Err(e),
-        (Ok(_), Ok(_)) => panic!("invalid movement"),
+    // First move all next coordinates out of the way
+    for next_xy in my_cell.all_next_xy_in_direction(from, direction) {
+        move_cell(map, &next_xy, direction)?;
     }
 
-    let from_cell = map
-        .get_cell_mut(from)
-        .ok_or_else(|| anyhow::anyhow!("from cell not found"))?;
+    debug!(
+        "Moving {my_cell:?} from {:?} in direction {:?}",
+        from, direction
+    );
 
-    let cell_value = from_cell.clone();
-    *from_cell = Cell::Empty;
+    // Now move mine in place
+    for my_xy in my_cell.all_coords_from(from, direction) {
+        let my_cell = map.get_cell_result(&my_xy)?.clone();
 
-    let to_cell = map
-        .get_cell_mut(newxy)
-        .ok_or_else(|| anyhow::anyhow!("to cell not found"))?;
+        let next_xy = add_xy_result(&my_xy, direction)?;
 
-    assert!(matches!(*to_cell, Cell::Empty));
-    *to_cell = cell_value;
+        let next_cell = map.get_cell_mut_result(&next_xy)?;
+        assert!(matches!(*next_cell, Cell::Empty));
+        *next_cell = my_cell.clone();
 
-    Ok(newxy)
+        let this_cell = map.get_cell_mut_result(&my_xy)?;
+        *this_cell = Cell::Empty;
+    }
+    Ok(())
 }
 
-fn add_xy(xy: (usize, usize), direction: (isize, isize)) -> Option<(usize, usize)> {
+fn add_xy(xy: &Position, direction: &Direction) -> Option<Position> {
     Some((
         xy.0.checked_add_signed(direction.0)?,
         xy.1.checked_add_signed(direction.1)?,
@@ -212,7 +168,8 @@ fn add_xy(xy: (usize, usize), direction: (isize, isize)) -> Option<(usize, usize
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
-    let mut map = input
+    // Rewrite the map
+    let map = input
         .map
         .iter()
         .map(|row| {
@@ -231,24 +188,10 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         })
         .collect::<Vec<_>>();
 
-    print_map(&map);
-
-    let mut player_xy = playerxy(&map).ok_or_else(|| anyhow::anyhow!("player not found"))?;
-
-    for m in input.movements.iter() {
-        let direction = match m {
-            Movement::Up => (0, -1),
-            Movement::Down => (0, 1),
-            Movement::Left => (-1, 0),
-            Movement::Right => (1, 0),
-        };
-
-        if let Ok(xy) = move_cell(&mut map, player_xy, direction) {
-            player_xy = xy;
-        }
-    }
-
-    Ok(1)
+    solve_part1_impl(&Data {
+        map,
+        movements: input.movements.clone(),
+    })
 }
 
 /// Solution to part 1
@@ -274,6 +217,34 @@ enum Cell {
     Empty,
     Player,
 }
+impl Cell {
+    /// Coordinates that this occupies where the current cell is at (0,0)
+    fn unit_coords(&self, direction: &Direction) -> impl Iterator<Item = &Direction> {
+        let left_right = direction.1 == 0;
+        match (self, left_right) {
+            (Cell::BoxLeft, false) => [(0, 0), (1, 0)].as_slice(),
+            (Cell::BoxRight, false) => [(0, 0), (-1, 0)].as_slice(),
+            _ => [(0, 0)].as_slice(),
+        }
+        .iter()
+    }
+    fn all_coords_from<'a>(
+        &'a self,
+        cur_xy: &'a Position,
+        direction: &'a Direction,
+    ) -> impl Iterator<Item = Position> + 'a {
+        self.unit_coords(direction)
+            .filter_map(move |d| add_xy(cur_xy, d))
+    }
+    fn all_next_xy_in_direction<'a>(
+        &'a self,
+        cur_xy: &'a Position,
+        direction: &'a Direction,
+    ) -> impl Iterator<Item = Position> + 'a {
+        self.all_coords_from(cur_xy, direction)
+            .filter_map(move |p| add_xy(&p, direction))
+    }
+}
 impl TryFrom<char> for Cell {
     type Error = anyhow::Error;
     fn try_from(value: char) -> Result<Self, Self::Error> {
@@ -287,7 +258,7 @@ impl TryFrom<char> for Cell {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Movement {
     Up,
     Down,
@@ -306,11 +277,21 @@ impl TryFrom<char> for Movement {
         }
     }
 }
+impl Movement {
+    fn direction(&self) -> Direction {
+        match self {
+            Movement::Up => (0, -1),
+            Movement::Down => (0, 1),
+            Movement::Left => (-1, 0),
+            Movement::Right => (1, 0),
+        }
+    }
+}
 
 /// Problem input
 #[derive(Debug)]
 struct Data {
-    map: Vec<Vec<Cell>>,
+    map: Map,
     movements: Vec<Movement>,
 }
 
@@ -342,7 +323,6 @@ impl Data {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        // XXX: Update the returned Data to include the parsed data.
         Ok(Data { map, movements })
     }
 }
@@ -373,7 +353,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 2 sample data.
+            9021 // XXX: Update this to the expected value for part 2 sample data.
         );
     }
 }

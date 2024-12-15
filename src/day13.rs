@@ -136,12 +136,7 @@ fn read_machines<'a>(
     // Prize: X=8400, Y=5400
     let buttonre = regex::Regex::new(r"Button ([AB]): X\+(\d+), Y\+(\d+)").unwrap();
     let prizere = regex::Regex::new(r"Prize: X=(\d+), Y=(\d+)").unwrap();
-    loop {
-        let a = if let Some(a) = lines.next() {
-            a
-        } else {
-            break;
-        };
+    while let Some(a) = lines.next() {
         let b = lines.next().ok_or_else(|| anyhow::anyhow!("no b"))?;
         let prize = lines.next().ok_or_else(|| anyhow::anyhow!("no prize"))?;
         let a = buttonre
