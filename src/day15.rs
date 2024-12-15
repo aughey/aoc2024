@@ -1,4 +1,4 @@
-use crate::{Direction, Position, Result};
+use crate::{add_xy, add_xy_result, Direction, GetCell, GetCellMut, Position, Result};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::fmt::Display;
@@ -7,29 +7,11 @@ use tracing::debug;
 pub const DAY: u32 = 15;
 
 type Map = Vec<Vec<Cell>>;
+type MapRef<'a> = &'a [Vec<Cell>];
+type MapMutRef<'a> = &'a mut [Vec<Cell>];
 
-trait Get {
-    fn get_cell(&self, xy: &Position) -> Option<&Cell>;
-    fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut Cell>;
-    fn get_cell_result(&self, xy: &Position) -> Result<&Cell> {
-        self.get_cell(xy)
-            .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
-    }
-    fn get_cell_mut_result(&mut self, xy: &Position) -> Result<&mut Cell> {
-        self.get_cell_mut(xy)
-            .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
-    }
-}
-impl Get for Map {
-    fn get_cell(&self, xy: &Position) -> Option<&Cell> {
-        self.get(xy.1)?.get(xy.0)
-    }
-    fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut Cell> {
-        self.get_mut(xy.1)?.get_mut(xy.0)
-    }
-}
-
-fn playerxy(map: &Map) -> Option<Position> {
+/// Find the player's position in the map
+fn playerxy(map: MapRef) -> Option<Position> {
     map.iter()
         .enumerate()
         .flat_map(|(y, row)| {
@@ -44,6 +26,7 @@ fn playerxy(map: &Map) -> Option<Position> {
         .next()
 }
 
+/// Solution to part 1
 fn solve_part1_impl(input: &Data) -> Result<usize> {
     let mut map = input.map.clone();
     let player_xy = playerxy(&map).ok_or_else(|| anyhow::anyhow!("player not found"))?;
@@ -71,7 +54,8 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     Ok(gps)
 }
 
-fn print_map(map: &Map) {
+/// Print the map
+fn print_map(map: MapRef) {
     for row in map {
         for cell in row {
             let c = match cell {
@@ -88,20 +72,7 @@ fn print_map(map: &Map) {
     }
 }
 
-fn add_xy_result(cur_cell: &Position, direction: &Direction) -> Result<Position> {
-    Ok((
-        cur_cell
-            .0
-            .checked_add_signed(direction.0)
-            .ok_or_else(|| anyhow::anyhow!("invalid movement"))?,
-        cur_cell
-            .1
-            .checked_add_signed(direction.1)
-            .ok_or_else(|| anyhow::anyhow!("invalid movement"))?,
-    ))
-}
-
-fn can_move_in_direction(map: &Map, cur_xy: &Position, direction: &Direction) -> Result<bool> {
+fn can_move_in_direction(map: MapRef, cur_xy: &Position, direction: &Direction) -> Result<bool> {
     debug!(
         "Checking if {:?} can move from {:?} in direction {:?}",
         map.get_cell_result(cur_xy)?,
@@ -125,10 +96,10 @@ fn can_move_in_direction(map: &Map, cur_xy: &Position, direction: &Direction) ->
     }
 }
 
-fn move_cell(map: &mut Map, from: &Position, direction: &Direction) -> Result<()> {
+fn move_cell(mut map: MapMutRef, from: &Position, direction: &Direction) -> Result<()> {
     //    assert!(can_move_in_direction(map, from, direction)?);
 
-    let my_cell = match map.get_cell_result(from)? {
+    let my_cell = match map.get_cell_mut_result(from)? {
         Cell::Empty => return Ok(()),
         Cell::Wall => anyhow::bail!("cannot move a wall cell"),
         c => c.clone(),
@@ -146,7 +117,7 @@ fn move_cell(map: &mut Map, from: &Position, direction: &Direction) -> Result<()
 
     // Now move mine in place
     for my_xy in my_cell.all_coords_from(from, direction) {
-        let my_cell = map.get_cell_result(&my_xy)?.clone();
+        let my_cell = map.get_cell_mut_result(&my_xy)?.clone();
 
         let next_xy = add_xy_result(&my_xy, direction)?;
 
@@ -158,13 +129,6 @@ fn move_cell(map: &mut Map, from: &Position, direction: &Direction) -> Result<()
         *this_cell = Cell::Empty;
     }
     Ok(())
-}
-
-fn add_xy(xy: &Position, direction: &Direction) -> Option<Position> {
-    Some((
-        xy.0.checked_add_signed(direction.0)?,
-        xy.1.checked_add_signed(direction.1)?,
-    ))
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
@@ -222,12 +186,16 @@ impl Cell {
     fn unit_coords(&self, direction: &Direction) -> impl Iterator<Item = &Direction> {
         let left_right = direction.1 == 0;
         match (self, left_right) {
+            // if we're moving up and down, consider both the left and right.
+            // But if we're going left and right, they move as individual units
             (Cell::BoxLeft, false) => [(0, 0), (1, 0)].as_slice(),
             (Cell::BoxRight, false) => [(0, 0), (-1, 0)].as_slice(),
             _ => [(0, 0)].as_slice(),
         }
         .iter()
     }
+
+    /// All coordinates that this occupies
     fn all_coords_from<'a>(
         &'a self,
         cur_xy: &'a Position,
@@ -236,6 +204,8 @@ impl Cell {
         self.unit_coords(direction)
             .filter_map(move |d| add_xy(cur_xy, d))
     }
+
+    /// All coordinates that this should occupy in this direction.
     fn all_next_xy_in_direction<'a>(
         &'a self,
         cur_xy: &'a Position,

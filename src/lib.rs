@@ -24,6 +24,38 @@ type Direction = (isize, isize);
 
 aoc_lib! { year = 2024 }
 
+trait GetCell<T> {
+    fn get_cell(&self, xy: &Position) -> Option<&T>;
+    fn get_cell_result(&self, xy: &Position) -> Result<&T> {
+        self.get_cell(xy)
+            .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
+    }
+}
+trait GetCellMut<T> {
+    fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut T>;
+    fn get_cell_mut_result(&mut self, xy: &Position) -> Result<&mut T> {
+        self.get_cell_mut(xy)
+            .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
+    }
+}
+
+impl<T, INNER> GetCell<T> for &[INNER]
+where
+    INNER: AsRef<[T]>,
+{
+    fn get_cell(&self, xy: &Position) -> Option<&T> {
+        self.get(xy.1)?.as_ref().get(xy.0)
+    }
+}
+impl<T, INNER> GetCellMut<T> for &mut [INNER]
+where
+    INNER: AsMut<[T]>,
+{
+    fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut T> {
+        self.get_mut(xy.1)?.as_mut().get_mut(xy.0)
+    }
+}
+
 pub fn enumerate_grid<T, INNER>(
     grid: impl IntoIterator<Item = INNER>,
 ) -> impl Iterator<Item = (usize, usize, T)>
@@ -166,4 +198,24 @@ where
     {
         self.map(f).take_while(|c| c.is_some()).map(|c| c.unwrap())
     }
+}
+
+fn add_xy_result(cur_cell: &Position, direction: &Direction) -> Result<Position> {
+    Ok((
+        cur_cell
+            .0
+            .checked_add_signed(direction.0)
+            .ok_or_else(|| anyhow::anyhow!("invalid movement"))?,
+        cur_cell
+            .1
+            .checked_add_signed(direction.1)
+            .ok_or_else(|| anyhow::anyhow!("invalid movement"))?,
+    ))
+}
+
+fn add_xy(xy: &Position, direction: &Direction) -> Option<Position> {
+    Some((
+        xy.0.checked_add_signed(direction.0)?,
+        xy.1.checked_add_signed(direction.1)?,
+    ))
 }
