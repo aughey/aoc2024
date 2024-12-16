@@ -6,6 +6,7 @@ pub mod day12;
 pub mod day13;
 pub mod day14;
 pub mod day15;
+pub mod day16;
 pub mod day2;
 pub mod day3;
 pub mod day4;
@@ -24,14 +25,25 @@ type Direction = (isize, isize);
 
 aoc_lib! { year = 2024 }
 
-trait GetCell<T> {
+/// A trait for things that can provide a cell reference given a position.
+pub trait GetCell<T> {
+    /// Get a reference to the cell at the given position.
     fn get_cell(&self, xy: &Position) -> Option<&T>;
+    /// Get a reference to the cell at the given position, returning an error if the cell does not exist.
     fn get_cell_result(&self, xy: &Position) -> Result<&T> {
         self.get_cell(xy)
             .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
     }
 }
-trait GetCellMut<T> {
+
+/// A trait for things that can provide a mutable cell reference given a position.
+pub trait GetCellMut<T> {
+    fn get_cell(&mut self, xy: &Position) -> Option<&T> {
+        self.get_cell_mut(xy).map(|c| &*c)
+    }
+    fn get_cell_result(&mut self, xy: &Position) -> Result<&T> {
+        self.get_cell_mut_result(xy).map(|c| &*c)
+    }
     fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut T>;
     fn get_cell_mut_result(&mut self, xy: &Position) -> Result<&mut T> {
         self.get_cell_mut(xy)
@@ -53,6 +65,14 @@ where
 {
     fn get_cell_mut(&mut self, xy: &Position) -> Option<&mut T> {
         self.get_mut(xy.1)?.as_mut().get_mut(xy.0)
+    }
+}
+impl<T, INNER> GetCell<T> for &mut [INNER]
+where
+    INNER: AsRef<[T]>,
+{
+    fn get_cell(&self, xy: &Position) -> Option<&T> {
+        self.get(xy.1)?.as_ref().get(xy.0)
     }
 }
 

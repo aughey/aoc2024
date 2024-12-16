@@ -44,3 +44,88 @@ template.rs created after day 2.  Current capabilities are:
     - xy computation with bounds and overflow
 - day6.rs
     - Creating a grid of a different type with the same dimensionality of another.
+
+```rust
+    let mut curr = (0,0);
+    for i in 0..data.grid.len() {
+        for j in 0..data.grid[0].len() {
+            if data.grid[i][j] == '@' {
+                curr = (i as i64,j as i64);
+                break
+            }
+        }
+    }
+
+    let mut curr = None;
+    for i in 0..data.grid.len() {
+        for j in 0..data.grid[0].len() {
+            if data.grid[i][j] == '@' {
+                curr = Some((i as i64,j as i64));
+                break
+            }
+        }
+    }
+
+    let mut curr = None;
+    for i in 0..data.grid.len() {
+        for j in 0..data.grid[0].len() {
+            if data.grid[i][j] == '@' {
+                curr = Some((i as i64,j as i64));
+                break
+            }
+        }
+    }
+    let curr = curr.ok_or_else(|| anyhow::anyhow!("no current"));
+
+    let mut curr = None;
+    'top: for i in 0..data.grid.len() {
+        for j in 0..data.grid[0].len() {
+            if data.grid[i][j] == '@' {
+                curr = Some((i as i64,j as i64));
+                break 'top;
+            }
+        }
+    }
+    let curr = curr.ok_or_else(|| anyhow::anyhow!("no current"))?;
+
+    let curr = {
+        let mut curr = None;
+        'top: for i in 0..data.grid.len() {
+            for j in 0..data.grid[0].len() {
+                if data.grid[i][j] == '@' {
+                    curr = Some((i as i64,j as i64));
+                    break 'top;
+                }
+            }
+        }
+        curr.ok_or_else(|| anyhow::anyhow!("no current"))?
+    };
+
+    let curr = {
+        let mut curr = None;
+        'top: for i in 0..data.grid.len() {
+            for j in 0..data.grid[i].len() {
+                if data.grid[i][j] == '@' {
+                    curr = Some((i as i64,j as i64));
+                    break 'top;
+                }
+            }
+        }
+        curr.ok_or_else(|| anyhow::anyhow!("no current"))?
+    };
+
+    let curr = map.iter()
+        .enumerate()
+        .flat_map(|(y, row)| {
+            row.iter().enumerate().filter_map(move |(x, cell)| {
+                if let Cell::Player = cell {
+                    Some((y, x))
+                } else {
+                    None
+                }
+            })
+        })
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("no current"))?
+
+```

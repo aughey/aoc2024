@@ -36,8 +36,8 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     for m in input.movements.iter() {
         //print_map(&map);
         let direction = m.direction();
-        if can_move_in_direction(&map, &player_xy, &direction)? {
-            move_cell(&mut map, &player_xy, &direction)?;
+        if can_move_in_direction(&map.as_slice(), &player_xy, &direction)? {
+            move_cell(&mut map.as_mut_slice(), &player_xy, &direction)?;
             player_xy = add_xy_result(&player_xy, &direction)?;
         }
     }
@@ -72,21 +72,17 @@ fn print_map(map: MapRef) {
     }
 }
 
-fn can_move_in_direction(map: MapRef, cur_xy: &Position, direction: &Direction) -> Result<bool> {
-    debug!(
-        "Checking if {:?} can move from {:?} in direction {:?}",
-        map.get_cell_result(cur_xy)?,
-        cur_xy,
-        direction
-    );
-    match map
-        .get_cell(cur_xy)
-        .ok_or_else(|| anyhow::anyhow!("Cannot get current cell"))?
-    {
+/// Can the cell at xy move in the direction given?
+fn can_move_in_direction(
+    map: &impl GetCell<Cell>,
+    xy: &Position,
+    direction: &Direction,
+) -> Result<bool> {
+    match map.get_cell_result(xy)? {
         Cell::Wall => Ok(false),
         Cell::Empty => Ok(true),
         cell => {
-            for newxy in cell.all_next_xy_in_direction(cur_xy, direction) {
+            for newxy in cell.all_next_xy_in_direction(xy, direction) {
                 if !can_move_in_direction(map, &newxy, direction)? {
                     return Ok(false);
                 }
@@ -96,7 +92,14 @@ fn can_move_in_direction(map: MapRef, cur_xy: &Position, direction: &Direction) 
     }
 }
 
-fn move_cell(mut map: MapMutRef, from: &Position, direction: &Direction) -> Result<()> {
+/// Move a cell in the given position in the given direction.
+///
+/// This will fail in the middle of the move if it encounters a cell that is not empty.
+/// This Error condition will result in the map being in an inconsistent state.
+fn move_cell<M>(map: &mut M, from: &Position, direction: &Direction) -> Result<()>
+where
+    M: GetCellMut<Cell> + GetCell<Cell>,
+{
     //    assert!(can_move_in_direction(map, from, direction)?);
 
     let my_cell = match map.get_cell_mut_result(from)? {
@@ -110,19 +113,16 @@ fn move_cell(mut map: MapMutRef, from: &Position, direction: &Direction) -> Resu
         move_cell(map, &next_xy, direction)?;
     }
 
-    debug!(
-        "Moving {my_cell:?} from {:?} in direction {:?}",
-        from, direction
-    );
-
-    // Now move mine in place
-    for my_xy in my_cell.all_coords_from(from, direction) {
-        let my_cell = map.get_cell_mut_result(&my_xy)?.clone();
+    // Now move each coordinate of my cell in the direction given
+    for my_xy in my_cell.all_coords(from, direction) {
+        let my_cell = map.get_cell_result(&my_xy)?.clone();
 
         let next_xy = add_xy_result(&my_xy, direction)?;
 
         let next_cell = map.get_cell_mut_result(&next_xy)?;
-        assert!(matches!(*next_cell, Cell::Empty));
+        if !matches!(*next_cell, Cell::Empty) {
+            anyhow::bail!("cannot move to a non-empty cell");
+        }
         *next_cell = my_cell.clone();
 
         let this_cell = map.get_cell_mut_result(&my_xy)?;
@@ -132,7 +132,7 @@ fn move_cell(mut map: MapMutRef, from: &Position, direction: &Direction) -> Resu
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
-    // Rewrite the map
+    // Expand the map
     let map = input
         .map
         .iter()
@@ -140,13 +140,16 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             row.iter()
                 .flat_map(|cell| {
                     match cell {
-                        Cell::Wall => [Cell::Wall, Cell::Wall],
-                        Cell::Box => [Cell::BoxLeft, Cell::BoxRight],
-                        Cell::Empty => [Cell::Empty, Cell::Empty],
-                        Cell::Player => [Cell::Player, Cell::Empty],
-                        Cell::BoxLeft | Cell::BoxRight => panic!("invalid cell"),
+                        Cell::Wall => &[Cell::Wall, Cell::Wall],
+                        Cell::Box => &[Cell::BoxLeft, Cell::BoxRight],
+                        Cell::Empty => &[Cell::Empty, Cell::Empty],
+                        Cell::Player => &[Cell::Player, Cell::Empty],
+                        Cell::BoxLeft | Cell::BoxRight => {
+                            panic!("invalid cell to expand in part 2")
+                        }
                     }
                     .into_iter()
+                    .cloned()
                 })
                 .collect::<Vec<_>>()
         })
@@ -196,7 +199,7 @@ impl Cell {
     }
 
     /// All coordinates that this occupies
-    fn all_coords_from<'a>(
+    fn all_coords<'a>(
         &'a self,
         cur_xy: &'a Position,
         direction: &'a Direction,
@@ -205,13 +208,13 @@ impl Cell {
             .filter_map(move |d| add_xy(cur_xy, d))
     }
 
-    /// All coordinates that this should occupy in this direction.
+    /// All coordinates that this cell should occupy when moved in this direction.
     fn all_next_xy_in_direction<'a>(
         &'a self,
         cur_xy: &'a Position,
         direction: &'a Direction,
     ) -> impl Iterator<Item = Position> + 'a {
-        self.all_coords_from(cur_xy, direction)
+        self.all_coords(cur_xy, direction)
             .filter_map(move |p| add_xy(&p, direction))
     }
 }
@@ -268,29 +271,20 @@ struct Data {
 impl Data {
     fn parse(s: &str) -> Result<Self> {
         // split s into two things separated by a blank line
-        let mut parts = s.split("\n\n");
-        let mapcontent = parts.next().ok_or_else(|| anyhow::anyhow!("missing map"))?;
-        let movementscontent = parts
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("missing movements"))?;
+        let (mapcontent, movementscontent) = s
+            .split_once("\n\n")
+            .ok_or_else(|| anyhow::anyhow!("missing blank line"))?;
 
         // parse map
         let map = mapcontent
             .lines()
-            .map(|line| {
-                line.chars()
-                    .map(|c| Cell::try_from(c).context("invalid cell"))
-                    .collect::<Result<Vec<_>>>()
-            })
+            .map(|line| line.chars().map(Cell::try_from).collect::<Result<Vec<_>>>())
             .collect::<Result<Vec<_>>>()?;
 
         // parse movements
         let movements = movementscontent
             .lines()
-            .flat_map(|line| {
-                line.chars()
-                    .map(|c| Movement::try_from(c).context("invalid movement"))
-            })
+            .flat_map(|line| line.chars().map(Movement::try_from))
             .collect::<Result<Vec<_>>>()?;
 
         Ok(Data { map, movements })
