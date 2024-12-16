@@ -114,15 +114,11 @@ template.rs created after day 2.  Current capabilities are:
         curr.ok_or_else(|| anyhow::anyhow!("no current"))?
     };
 
-    let curr = map.iter()
+    let curr = data.grid.iter()
         .enumerate()
         .flat_map(|(y, row)| {
             row.iter().enumerate().filter_map(move |(x, cell)| {
-                if let Cell::Player = cell {
-                    Some((y, x))
-                } else {
-                    None
-                }
+                (cell == '@').then_some((y,x))
             })
         })
         .next()

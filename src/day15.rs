@@ -268,6 +268,16 @@ struct Data {
     movements: Vec<Movement>,
 }
 
+fn parse_grid<T, E>(input: &str) -> Result<Vec<Vec<T>>, E>
+where
+    T: TryFrom<char, Error = E>,
+{
+    input
+        .lines()
+        .map(|line| line.chars().map(T::try_from).collect::<Result<Vec<_>, _>>())
+        .collect::<Result<Vec<_>, _>>()
+}
+
 impl Data {
     fn parse(s: &str) -> Result<Self> {
         // split s into two things separated by a blank line
@@ -275,17 +285,20 @@ impl Data {
             .split_once("\n\n")
             .ok_or_else(|| anyhow::anyhow!("missing blank line"))?;
 
-        // parse map
-        let map = mapcontent
-            .lines()
-            .map(|line| line.chars().map(Cell::try_from).collect::<Result<Vec<_>>>())
-            .collect::<Result<Vec<_>>>()?;
+        let map = parse_grid(mapcontent)?;
+        let movements = parse_grid(movementscontent)?;
 
-        // parse movements
-        let movements = movementscontent
-            .lines()
-            .flat_map(|line| line.chars().map(Movement::try_from))
-            .collect::<Result<Vec<_>>>()?;
+        // // parse map
+        // let map = mapcontent
+        //     .lines()
+        //     .map(|line| line.chars().map(Cell::try_from).collect::<Result<Vec<_>>>())
+        //     .collect::<Result<Vec<_>>>()?;
+
+        // // parse movements
+        // let movements = movementscontent
+        //     .lines()
+        //     .flat_map(|line| line.chars().map(Movement::try_from))
+        //     .collect::<Result<Vec<_>>>()?;
 
         Ok(Data { map, movements })
     }
