@@ -146,7 +146,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
                             panic!("invalid cell to expand in part 2")
                         }
                     }
-                    .into_iter()
+                    .iter()
                     .cloned()
                 })
                 .collect::<Vec<_>>()
@@ -216,6 +216,7 @@ impl Cell {
             .filter_map(move |p| add_xy(&p, direction))
     }
 }
+#[allow(clippy::from_over_into)]
 impl TryFrom<char> for Cell {
     type Error = anyhow::Error;
     fn try_from(value: char) -> Result<Self, Self::Error> {

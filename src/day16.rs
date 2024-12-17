@@ -85,9 +85,7 @@ fn maze_moves<'a>(
         }
     };
 
-    moves
-        .into_iter()
-        .chain([make_cell()].into_iter().filter_map(|x| x))
+    moves.into_iter().chain([make_cell()].into_iter().flatten())
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
