@@ -2,7 +2,6 @@ use crate::{add_xy, Direction, Position, Result};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::{collections::HashSet, fmt::Display};
-use tracing::info;
 
 pub const DAY: u32 = 16;
 
@@ -185,6 +184,7 @@ impl Into<char> for &Cell {
     }
 }
 
+#[allow(dead_code)]
 fn print_maze(maze: &Maze, o: &Orientation) {
     let my_pos = &o.position;
     for (y, row) in maze.iter().enumerate() {

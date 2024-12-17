@@ -2,13 +2,11 @@ use crate::{add_xy, add_xy_result, Direction, GetCell, GetCellMut, Position, Res
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::fmt::Display;
-use tracing::debug;
 
 pub const DAY: u32 = 15;
 
 type Map = Vec<Vec<Cell>>;
 type MapRef<'a> = &'a [Vec<Cell>];
-type MapMutRef<'a> = &'a mut [Vec<Cell>];
 
 /// Find the player's position in the map
 fn playerxy(map: MapRef) -> Option<Position> {
@@ -286,7 +284,6 @@ impl Data {
             .ok_or_else(|| anyhow::anyhow!("missing blank line"))?;
 
         let map = parse_grid(mapcontent)?;
-        let movements = parse_grid(movementscontent)?;
 
         // // parse map
         // let map = mapcontent
@@ -295,10 +292,10 @@ impl Data {
         //     .collect::<Result<Vec<_>>>()?;
 
         // // parse movements
-        // let movements = movementscontent
-        //     .lines()
-        //     .flat_map(|line| line.chars().map(Movement::try_from))
-        //     .collect::<Result<Vec<_>>>()?;
+        let movements = movementscontent
+            .lines()
+            .flat_map(|line| line.chars().map(Movement::try_from))
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(Data { map, movements })
     }
