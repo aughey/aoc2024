@@ -1,8 +1,7 @@
 use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
-use rayon::iter::{ParallelBridge, ParallelIterator as _};
-use std::{fmt::Display, u64};
+use std::fmt::Display;
 
 pub const DAY: u32 = 17;
 
@@ -24,13 +23,13 @@ fn solve_part1_impl(input: &Data) -> Result<Vec<u64>> {
         };
         pc += 1;
         let operand = match program.get(pc) {
-            Some(Memory::Operand(operand)) => u64::from(*operand),
+            Some(Memory::Operand(operand)) => *operand,
             _ => anyhow::bail!("Invalid operand"),
         };
         pc += 1;
         let combo = || {
             Ok(match operand {
-                0 | 1 | 2 | 3 => u64::from(operand),
+                0..=3 => operand,
                 4 => reg_a,
                 5 => reg_b,
                 6 => reg_c,
@@ -38,15 +37,15 @@ fn solve_part1_impl(input: &Data) -> Result<Vec<u64>> {
             })
         };
         match opcode {
-            Opcode::Adv => reg_a = reg_a / (2u64.pow(combo()?.try_into()?)),
-            Opcode::Bxl => reg_b = reg_b ^ operand,
+            Opcode::Adv => reg_a /= 2u64.pow(combo()?.try_into()?),
+            Opcode::Bxl => reg_b ^= operand,
             Opcode::Bst => reg_b = combo()? % 8,
             Opcode::Jnz => {
                 if reg_a != 0 {
                     pc = operand.try_into()?;
                 }
             }
-            Opcode::Bxc => reg_b = reg_b ^ reg_c,
+            Opcode::Bxc => reg_b ^= reg_c,
             Opcode::Out => output.push(combo()? % 8),
             Opcode::Bdv => reg_b = reg_a / (2u64.pow(combo()?.try_into()?)),
             Opcode::Cdv => reg_c = reg_a / (2u64.pow(combo()?.try_into()?)),
@@ -56,28 +55,7 @@ fn solve_part1_impl(input: &Data) -> Result<Vec<u64>> {
     Ok(output)
 }
 
-fn solve_part2_impl(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 2
-    Ok(0)
-}
-
-/// Solution to part 1
-#[aoc(day17, part1)]
-fn solve_part1(input: &str) -> Result<String> {
-    let input = Data::parse(input).context("input parsing")?;
-    let output = solve_part1_impl(&input)?;
-    Ok(output
-        .iter()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>()
-        .join(","))
-}
-
-/// Solution to part 2
-#[aoc(day17, part2)]
-fn solve_part2(input: &str) -> Result<u64> {
-    let input = Data::parse(input).context("input parsing")?;
-
+fn solve_part2_impl(input: &Data) -> Result<u64> {
     // let mut last = None;
     // let mut count = 0;
     // for reg_a in 0.. {
@@ -99,8 +77,10 @@ fn solve_part2(input: &str) -> Result<u64> {
     // }
     // return Ok(0);
 
-    let mut exp = 15;
-    let mut reg_a = 8u64.pow(exp);
+    let program_len = input.raw_program.len() as u32;
+
+    let exp = program_len - 1;
+    let reg_a = 8u64.pow(exp);
 
     assert_eq!(
         solve_part1_impl(&Data {
@@ -120,12 +100,13 @@ fn solve_part2(input: &str) -> Result<u64> {
     );
 
     //    for index in 0..14 {
-    let mut exps = [0; 14];
+    let mut exps = (0..program_len - 2).map(|_| 0).collect::<Vec<_>>(); // [0; 14];
     loop {
-        let mut reg_a = 8u64.pow(15);
+        let mut reg_a = 8u64.pow(program_len - 1);
         for (i, count) in exps.iter().enumerate() {
-            reg_a += 64 * 8u64.pow(13 - i as u32) * count;
+            reg_a += 64 * 8u64.pow(program_len - 3 - i as u32) * count;
         }
+        // println!("exps: {:?}", exps);
 
         let output = solve_part1_impl(&Data {
             a: reg_a,
@@ -133,10 +114,10 @@ fn solve_part2(input: &str) -> Result<u64> {
         })?;
         assert_eq!(output.len(), input.raw_program.len());
 
-        println!(
-            "reg_a: {}, exps: {:?}, output: {:?}, program: {:?}",
-            reg_a, exps, output, input.raw_program
-        );
+        // println!(
+        //     "reg_a: {}, exps: {:?}, output: {:?}, program: {:?}",
+        //     reg_a, exps, output, input.raw_program
+        // );
 
         let mut check = output.iter().rev().zip(input.raw_program.iter().rev());
 
@@ -154,9 +135,9 @@ fn solve_part2(input: &str) -> Result<u64> {
         }
     }
 
-    let mut reg_a = 8u64.pow(15);
+    let mut reg_a = 8u64.pow(program_len - 1);
     for (i, count) in exps.iter().enumerate() {
-        reg_a += 64 * 8u64.pow(13 - i as u32) * count;
+        reg_a += 64 * 8u64.pow(program_len - 3 - i as u32) * count;
     }
 
     //   }
@@ -179,6 +160,25 @@ fn solve_part2(input: &str) -> Result<u64> {
         reg_a += 1;
     }
     Ok(reg_a)
+}
+
+/// Solution to part 1
+#[aoc(day17, part1)]
+fn solve_part1(input: &str) -> Result<String> {
+    let input = Data::parse(input).context("input parsing")?;
+    let output = solve_part1_impl(&input)?;
+    Ok(output
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>()
+        .join(","))
+}
+
+/// Solution to part 2
+#[aoc(day17, part2)]
+fn solve_part2(input: &str) -> Result<u64> {
+    let input = Data::parse(input).context("input parsing")?;
+    solve_part2_impl(&input)
 }
 
 #[derive(Debug, Clone)]
@@ -255,7 +255,7 @@ impl Data {
                 Ok(if i % 2 == 0 {
                     Memory::Opcode(Opcode::try_from(num)?)
                 } else {
-                    Memory::Operand(num.into())
+                    Memory::Operand(num)
                 })
             })
             .collect::<Result<_>>()?;

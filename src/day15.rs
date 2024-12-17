@@ -277,7 +277,7 @@ impl Data {
             .ok_or_else(|| anyhow::anyhow!("missing blank line"))?;
 
         let map = parse_grid(mapcontent)?;
-        let movements = parse_grid(movementscontent)?;
+        //        let movements = parse_grid(movementscontent)?;
 
         // // parse map
         // let map = mapcontent
@@ -286,10 +286,10 @@ impl Data {
         //     .collect::<Result<Vec<_>>>()?;
 
         // // parse movements
-        // let movements = movementscontent
-        //     .lines()
-        //     .flat_map(|line| line.chars().map(Movement::try_from))
-        //     .collect::<Result<Vec<_>>>()?;
+        let movements = movementscontent
+            .lines()
+            .flat_map(parse_line)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(Data { map, movements })
     }
@@ -305,7 +305,7 @@ pub fn part2(input: &str) -> impl Display {
     solve_part2(input).unwrap()
 }
 
-pub fn sum_grid(grid: &Vec<Vec<char>>) -> i64 {
+pub fn sum_grid(grid: &[Vec<char>]) -> i64 {
     grid.iter()
         .enumerate()
         .flat_map(|(y, row)| {
