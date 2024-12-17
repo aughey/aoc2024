@@ -171,9 +171,9 @@ impl TryFrom<char> for Cell {
         })
     }
 }
-impl Into<char> for &Cell {
-    fn into(self) -> char {
-        match self {
+impl From<&Cell> for char {
+    fn from(val: &Cell) -> Self {
+        match val {
             Cell::Wall => '#',
             Cell::Empty => '.',
             Cell::Start => 'S',
