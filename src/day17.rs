@@ -77,52 +77,108 @@ fn solve_part1(input: &str) -> Result<String> {
 #[aoc(day17, part2)]
 fn solve_part2(input: &str) -> Result<u64> {
     let input = Data::parse(input).context("input parsing")?;
-    let mut min = 0u64;
-    let mut max = u64::MAX;
+
+    // let mut last = None;
+    // let mut count = 0;
+    // for reg_a in 0.. {
+    //     let output = solve_part1_impl(&Data {
+    //         a: reg_a,
+    //         ..input.clone()
+    //     })?;
+    //     let last_output = output.iter().rev().take(1).copied().next().unwrap();
+    //     count += 1;
+    //     if let Some(l) = last {
+    //         if last_output != l {
+    //             println!("reg_a {}, output: {:?}, count: {}", reg_a, output, count);
+    //             last = Some(last_output);
+    //             count = 0;
+    //         }
+    //     } else {
+    //         last = Some(last_output);
+    //     }
+    // }
+    // return Ok(0);
+
+    let mut exp = 15;
+    let mut reg_a = 8u64.pow(exp);
+
+    assert_eq!(
+        solve_part1_impl(&Data {
+            a: reg_a,
+            ..input.clone()
+        })?
+        .len(),
+        input.raw_program.len()
+    );
+    assert_eq!(
+        solve_part1_impl(&Data {
+            a: reg_a - 1,
+            ..input.clone()
+        })?
+        .len(),
+        input.raw_program.len() - 1
+    );
+
+    //    for index in 0..14 {
+    let mut exps = [0; 14];
     loop {
-        let reg_a = u64::try_from((min as u128 + max as u128) / 2)?;
-        let reg_a = min;
-        println!("{min} {max} {reg_a}");
+        let mut reg_a = 8u64.pow(15);
+        for (i, count) in exps.iter().enumerate() {
+            reg_a += 64 * 8u64.pow(13 - i as u32) * count;
+        }
+
         let output = solve_part1_impl(&Data {
             a: reg_a,
             ..input.clone()
-        })
-        .unwrap();
+        })?;
+        assert_eq!(output.len(), input.raw_program.len());
 
-        // let num = output
-        //     .iter()
-        //     .rev()
-        //     .enumerate()
-        //     .fold(0, |acc, (i, &x)| acc + x * 4u64.pow(i as u64));
+        println!(
+            "reg_a: {}, exps: {:?}, output: {:?}, program: {:?}",
+            reg_a, exps, output, input.raw_program
+        );
 
-        println!("{reg_a} {:?} {:?}", output, input.raw_program);
+        let mut check = output.iter().rev().zip(input.raw_program.iter().rev());
 
-        if output.as_slice() == input.raw_program {
-            return Ok(reg_a);
-        }
-        min += 1;
-        continue;
-
-        if output.len() < input.raw_program.len() {
-            min = reg_a;
-        } else if output.len() > input.raw_program.len() {
-            max = reg_a;
-        } else {
-            println!("Equal length");
-            // Walk backward and find the first difference
-            let first_diff = output
-                .iter()
-                .zip(input.raw_program.iter())
-                .rev()
-                .find(|(a, b)| a != b)
-                .unwrap();
-            if first_diff.0 < first_diff.1 {
-                max = reg_a;
-            } else {
-                min = reg_a;
+        let bad_index = check.position(|(a, b)| a != b);
+        if let Some(bad_index) = bad_index {
+            if bad_index >= exps.len() {
+                break;
             }
+            exps[bad_index] += 1;
+            for exp in exps.iter_mut().skip(bad_index + 1) {
+                *exp = 0;
+            }
+        } else {
+            break;
         }
     }
+
+    let mut reg_a = 8u64.pow(15);
+    for (i, count) in exps.iter().enumerate() {
+        reg_a += 64 * 8u64.pow(13 - i as u32) * count;
+    }
+
+    //   }
+    println!("Brute");
+    // Brute force the last
+    for _ in 0.. {
+        let output = solve_part1_impl(&Data {
+            a: reg_a,
+            ..input.clone()
+        })?;
+        assert_eq!(output.len(), input.raw_program.len());
+        // println!(
+        //     "reg_a: {}, exp: {}, output: {:?}, input: {:?}",
+        //     reg_a, exp, output, input.raw_program
+        // );
+        if output.as_slice() == input.raw_program.as_slice() {
+            break;
+        }
+
+        reg_a += 1;
+    }
+    Ok(reg_a)
 }
 
 #[derive(Debug, Clone)]
