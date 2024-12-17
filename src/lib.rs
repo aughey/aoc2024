@@ -221,7 +221,7 @@ where
     }
 }
 
-fn add_xy_result(cur_cell: &Position, direction: &Direction) -> Result<Position> {
+pub fn add_xy_result(cur_cell: &Position, direction: &Direction) -> Result<Position> {
     Ok((
         cur_cell
             .0
@@ -234,9 +234,33 @@ fn add_xy_result(cur_cell: &Position, direction: &Direction) -> Result<Position>
     ))
 }
 
-fn add_xy(xy: &Position, direction: &Direction) -> Option<Position> {
+pub fn add_xy(xy: &Position, direction: &Direction) -> Option<Position> {
     Some((
         xy.0.checked_add_signed(direction.0)?,
         xy.1.checked_add_signed(direction.1)?,
     ))
+}
+
+pub fn parse_grid<T, E>(input: &str) -> Result<Vec<Vec<T>>, E>
+where
+    T: TryFrom<char, Error = E>,
+{
+    parse_grid_i(input.lines())
+}
+
+pub fn parse_grid_i<'a, T, E>(input: impl IntoIterator<Item = &'a str>) -> Result<Vec<Vec<T>>, E>
+where
+    T: TryFrom<char, Error = E>,
+{
+    input
+        .into_iter()
+        .map(|line| parse_line(line).collect::<Result<Vec<_>, _>>())
+        .collect::<Result<Vec<_>, _>>()
+}
+
+pub fn parse_line<'a, T, E>(line: &'a str) -> impl Iterator<Item = Result<T, E>> + 'a
+where
+    T: TryFrom<char, Error = E> + 'a,
+{
+    line.chars().map(T::try_from)
 }

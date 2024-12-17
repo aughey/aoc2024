@@ -1,4 +1,6 @@
-use crate::{add_xy, add_xy_result, Direction, GetCell, GetCellMut, Position, Result};
+use crate::{
+    add_xy, add_xy_result, parse_grid, parse_line, Direction, GetCell, GetCellMut, Position, Result,
+};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use std::fmt::Display;
@@ -267,16 +269,6 @@ struct Data {
     movements: Vec<Movement>,
 }
 
-fn parse_grid<T, E>(input: &str) -> Result<Vec<Vec<T>>, E>
-where
-    T: TryFrom<char, Error = E>,
-{
-    input
-        .lines()
-        .map(|line| line.chars().map(T::try_from).collect::<Result<Vec<_>, _>>())
-        .collect::<Result<Vec<_>, _>>()
-}
-
 impl Data {
     fn parse(s: &str) -> Result<Self> {
         // split s into two things separated by a blank line
@@ -285,6 +277,7 @@ impl Data {
             .ok_or_else(|| anyhow::anyhow!("missing blank line"))?;
 
         let map = parse_grid(mapcontent)?;
+        let movements = parse_grid(movementscontent)?;
 
         // // parse map
         // let map = mapcontent
@@ -293,10 +286,10 @@ impl Data {
         //     .collect::<Result<Vec<_>>>()?;
 
         // // parse movements
-        let movements = movementscontent
-            .lines()
-            .flat_map(|line| line.chars().map(Movement::try_from))
-            .collect::<Result<Vec<_>>>()?;
+        // let movements = movementscontent
+        //     .lines()
+        //     .flat_map(|line| line.chars().map(Movement::try_from))
+        //     .collect::<Result<Vec<_>>>()?;
 
         Ok(Data { map, movements })
     }
@@ -310,6 +303,18 @@ pub fn part1(input: &str) -> impl Display {
 /// codspeed compatible function
 pub fn part2(input: &str) -> impl Display {
     solve_part2(input).unwrap()
+}
+
+pub fn sum_grid(grid: &Vec<Vec<char>>) -> i64 {
+    grid.iter()
+        .enumerate()
+        .flat_map(|(y, row)| {
+            row.iter()
+                .enumerate()
+                .filter(|(_, cell)| **cell == 'O')
+                .map(move |(x, _)| x as i64 + 100 * y as i64)
+        })
+        .sum::<i64>()
 }
 
 #[cfg(test)]
