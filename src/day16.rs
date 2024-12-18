@@ -98,6 +98,31 @@ fn maze_moves<'a>(
         })
     })();
 
+    let _step_forward = (|| {
+        let next_xy = add_xy(&o.position, &o.direction)?;
+        let forward_cell = maze.get(next_xy.1)?.get(next_xy.0)?;
+        let non_wall = forward_cell != &Cell::Wall;
+        non_wall.then_some((
+            Orientation {
+                position: add_xy(&o.position, &o.direction).unwrap(),
+                direction: o.direction,
+            },
+            1,
+        ))
+    })();
+
+    let _step_forward = add_xy(&o.position, &o.direction).and_then(|next_xy| {
+        let forward_cell = maze.get(next_xy.1)?.get(next_xy.0)?;
+        let non_wall = forward_cell != &Cell::Wall;
+        non_wall.then_some((
+            Orientation {
+                position: add_xy(&o.position, &o.direction).unwrap(),
+                direction: o.direction,
+            },
+            1,
+        ))
+    });
+
     // Compute xy, get the maze cell, check if it's not a wall, and return the new orientation
     let _step_forward = add_xy(&o.position, &o.direction)
         .and_then(|xy| maze.get(xy.1)?.get(xy.0))
