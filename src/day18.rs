@@ -1,9 +1,8 @@
-use crate::{add_xy, Direction, GetCell, GetCellMut, Position, Result};
+mod generics;
+use crate::{add_xy, Direction, Position, Result};
 use aoc_runner_derive::aoc;
-use std::{
-    collections::{BTreeSet, HashSet},
-    fmt::Display,
-};
+use generics::{Map, MutMap};
+use std::{collections::HashSet, fmt::Display};
 
 pub const DAY: u32 = 18;
 
@@ -19,194 +18,121 @@ const FALL_COUNT: usize = 12;
 #[cfg(not(test))]
 const FALL_COUNT: usize = 1024;
 
-/// A map is a rectangular bounded grid of cells.
-trait MutMap {
-    /// Add a rock to the map at the given position.
-    /// Could fail if the rock is out of bounds.
-    fn add_rock(&mut self, rock: &Position) -> Result<()>;
-}
-trait Map {
-    /// Check if the given position is a valid position to move to.
-    fn can_move_to(&self, pos: &Position) -> bool;
-    /// Return the bounds of the map.
-    fn bound(&self) -> Position;
-}
-
-/// A container that can check if it contains a value.
-///
-/// This is used to abstract over the different types of containers
-trait HashContainer<T> {
-    /// Returns true if this container contains the given value.
-    fn contains(&self, value: &T) -> bool;
-    /// Insert the given value into the container.
-    fn insert(&mut self, value: T) -> bool;
-}
-
-/// Am implementation of HashContainer for HashSets
-impl<T> HashContainer<T> for HashSet<T>
-where
-    T: std::hash::Hash + Eq,
-{
-    fn contains(&self, value: &T) -> bool {
-        HashSet::contains(self, value)
-    }
-    fn insert(&mut self, value: T) -> bool {
-        HashSet::insert(self, value)
-    }
-}
-
-/// An implementation of HashContainer for BTreeSets
-impl<T> HashContainer<T> for BTreeSet<T>
-where
-    T: Ord,
-{
-    fn contains(&self, value: &T) -> bool {
-        BTreeSet::contains(self, value)
-    }
-    fn insert(&mut self, value: T) -> bool {
-        BTreeSet::insert(self, value)
-    }
-}
-
-/// A bounded map is something that implements HashContainer
-/// and has a fixed bound.
-#[allow(dead_code)]
-struct BoundedMap<T> {
-    map: T,
-    bounds: Position,
-}
-
-/// Implementation for creating new bounded maps
-impl<T> BoundedMap<T>
-where
-    T: HashContainer<Position> + Default,
-{
-    #[allow(dead_code)]
-    /// Create a new BoundedMap with the given bounds.
-    fn new(bounds: Position) -> Self {
-        Self {
-            map: Default::default(),
-            bounds,
-        }
-    }
-}
-
-/// Implement Map for BoundedMap
-impl<T> MutMap for BoundedMap<T>
-where
-    T: HashContainer<Position>,
-{
-    fn add_rock(&mut self, rock: &Position) -> Result<()> {
-        self.map.insert(*rock);
-        Ok(())
-    }
-}
-
-impl<T> Map for BoundedMap<T>
-where
-    T: HashContainer<Position>,
-{
-    fn bound(&self) -> Position {
-        self.bounds
-    }
-    fn can_move_to(&self, pos: &Position) -> bool {
-        // If the position is out of bounds, we can't move there.
-        if pos.0 >= self.bounds.0 || pos.1 >= self.bounds.1 {
-            false
-        } else {
-            // Otherwise, we can move there if the position is not occupied.
-            !self.map.contains(pos)
-        }
-    }
-}
-
-impl<C> MutMap for C
-where
-    C: GetCellMut<bool>,
-{
-    fn add_rock(&mut self, rock: &Position) -> Result<()> {
-        let c = self.get_cell_mut_result(rock)?;
-        *c = true;
-        Ok(())
-    }
-}
-
-impl<C> Map for C
-where
-    C: GetCell<bool>,
-{
-    fn can_move_to(&self, pos: &Position) -> bool {
-        let c = self.get_cell(pos);
-        if let Some(occupied) = c {
-            !*occupied
-        } else {
-            // out of bounds, can't move there.
-            false
-        }
-    }
-
-    fn bound(&self) -> Position {
-        GetCell::bound(self)
-    }
-}
-
-/// Map can be implemented for a Vec<Vec<bool>>.
-impl MutMap for Vec<Vec<bool>> {
-    fn add_rock(&mut self, xy: &Position) -> Result<()> {
-        self.as_mut_slice().add_rock(xy)
-    }
-}
-
-impl Map for Vec<Vec<bool>> {
-    fn bound(&self) -> Position {
-        Map::bound(&self.as_slice())
-    }
-    fn can_move_to(&self, pos: &Position) -> bool {
-        self.as_slice().can_move_to(pos)
-    }
-}
-
-impl<const XBOUND: usize, const YBOUND: usize> MutMap for [[bool; XBOUND]; YBOUND] {
-    fn add_rock(&mut self, xy: &Position) -> Result<()> {
-        let mut s = self.as_mut_slice();
-        let c = s.get_cell_mut_result(xy)?;
-        *c = true;
-        Ok(())
-    }
-}
-
-impl<const XBOUND: usize, const YBOUND: usize> Map for [[bool; XBOUND]; YBOUND] {
-    fn bound(&self) -> Position {
-        (XBOUND, YBOUND)
-    }
-    fn can_move_to(&self, pos: &Position) -> bool {
-        let s = self.as_slice();
-        let c = s.get_cell(pos);
-        if let Some(occupied) = c {
-            !*occupied
-        } else {
-            // out of bounds, can't move there.
-            false
-        }
-    }
-}
-
-trait PathFinder {
+/// A PathFinder is something that can find a path through a map.
+pub trait PathFinder {
     fn find_path(&self, map: &impl Map) -> Result<Vec<Position>>;
 }
 
 fn solve_part1_impl(
-    falling: impl Iterator<Item = Result<Position>>,
-    mut map: impl Map,
+    falling_rocks: impl Iterator<Item = Result<Position>>,
+    mut map: impl Map + MutMap,
     path_finder: impl PathFinder,
 ) -> Result<usize> {
-    for rock in falling.take(FALL_COUNT) {
-        map.add_rock(&rock?)?;
+    // take fall count rocks from the iterator.
+    let rocks_to_add = falling_rocks.take(FALL_COUNT);
+
+    // Add all of these rocks to the map
+    for rock in rocks_to_add {
+        map.add_rock(rock?)?;
     }
+
+    // Find the path.
     let path = path_finder.find_path(&map)?;
-    Ok(path.len() - 1)
+
+    // Return the length of the path (don't include the last step)
+    path.len()
+        .checked_sub(1)
+        .ok_or_else(|| anyhow::anyhow!("empty path found"))
 }
 
+/// To keep our solutions reading like words, a PreviousPath trait
+/// will keep track of previous paths and answer questions about them.
+trait PreviousPath {
+    /// A query, will the path we're remembering be affected by this rock?
+    fn will_be_affected_by(&self, rock_at: &Position) -> bool;
+    /// Remember this path for future queries.
+    fn remember_path(&mut self, path: Vec<Position>);
+
+    /// A simple negation of the above to make logic easier to read.
+    fn will_not_be_affected_by(&self, rock_at: &Position) -> bool {
+        !self.will_be_affected_by(rock_at)
+    }
+}
+
+/// Implement PathRemember for an Optional Vec<Position>.
+impl PreviousPath for Option<Vec<Position>> {
+    fn will_be_affected_by(&self, rock_at: &Position) -> bool {
+        // If we have a path...
+        if let Some(prev_path) = self.as_ref() {
+            // ...and the new rock is in the path, then it will affect the best path.
+            prev_path.contains(rock_at)
+        } else {
+            // If we don't have a path then by definition it is affected.
+            true
+        }
+    }
+
+    // Replace the path with a new one.
+    fn remember_path(&mut self, path: Vec<Position>) {
+        self.replace(path);
+    }
+}
+
+/// Implement PathRemember for an Optional HashSet<Position>.
+/// This is more academic to show what it would look like.
+impl PreviousPath for Option<HashSet<Position>> {
+    fn will_be_affected_by(&self, rock_at: &Position) -> bool {
+        // If we have a path...
+        if let Some(prev_path) = self.as_ref() {
+            // ...and the new rock is in the path, then it will affect the best path.
+            prev_path.contains(rock_at)
+        } else {
+            // If we don't have a path then by definition it is affected.
+            true
+        }
+    }
+
+    // Replace the path with a new one.
+    fn remember_path(&mut self, path: Vec<Position>) {
+        self.replace(path.into_iter().collect());
+    }
+}
+
+fn solve_part2_impl(
+    falling: impl Iterator<Item = Result<Position>>,
+    mut map: impl Map + MutMap,
+    path_finder: impl PathFinder,
+) -> Result<Position> {
+    // Keep track of the path of a previous iteration in order
+    // to avoid recomputing the path if it's not affected by a new rock.
+    let mut prev_path: Option<Vec<Position>> = None;
+
+    // Continue to add rocks to the map and try to find a path.
+    for rock in falling {
+        // Add the rock to the map.
+        let rock = rock?;
+        map.add_rock(rock)?;
+
+        // If our previously computed path isn't affected by this
+        // rock, then we don't need to recompute the path.
+        if prev_path.will_not_be_affected_by(&rock) {
+            continue;
+        }
+
+        let best_path_to_end = path_finder.find_path(&map);
+        if let Ok(path) = best_path_to_end {
+            // If we found a path, remember it for next time.
+            prev_path.remember_path(path);
+        } else {
+            // No path found.  This rock is the answer.
+            return Ok(rock);
+        }
+    }
+
+    anyhow::bail!("no solution found");
+}
+
+/// Print the contents of the map.
 #[allow(dead_code)]
 fn print_map(map: &impl Map) {
     let bound = map.bound();
@@ -219,47 +145,14 @@ fn print_map(map: &impl Map) {
     }
 }
 
-fn solve_part2_impl(
-    falling: impl Iterator<Item = Result<Position>>,
-    mut map: impl Map,
-    path_finder: impl PathFinder,
-) -> Result<Position> {
-    let mut prev_path: Option<Vec<Position>> = None;
-
-    for rock in falling {
-        let rock = rock?;
-        map.add_rock(&rock)?;
-        // Don't try to compute this path if this rock didn't
-        // block the already-best-path.
-        if let Some(prev_path) = prev_path.as_ref() {
-            if !prev_path.contains(&rock) {
-                continue;
-            }
-        }
-        // Find the path
-        let path = path_finder.find_path(&map);
-        // If we found a path, update the best path,
-        // otherwise this rock blocked our path and is the answer.
-        if let Ok(path) = path {
-            prev_path = Some(path);
-        } else {
-            return Ok(rock);
-        }
-    }
-
-    anyhow::bail!("no solution found");
-}
-
+/// Path finding using the Fringe algorithm.
 #[allow(dead_code)]
-struct FringePathFinder {
-    start: Position,
-}
+struct FringePathFinder {}
 impl PathFinder for FringePathFinder {
     fn find_path(&self, map: &impl Map) -> Result<Vec<Position>> {
-        let end = map.bound();
-        let end = (end.0 - 1, end.1 - 1);
+        let (start, end) = (map.start(), map.end());
         let shortest = pathfinding::directed::fringe::fringe(
-            &self.start,
+            &start,
             |xy| valid_map_steps(map, *xy).map(add_cost),
             |_| 0,
             |coord| *coord == end,
@@ -269,16 +162,14 @@ impl PathFinder for FringePathFinder {
     }
 }
 
+/// Path finding using the Dijkstra algorithm.
 #[allow(dead_code)]
-struct DijkstraPathFinder {
-    start: Position,
-}
+struct DijkstraPathFinder {}
 impl PathFinder for DijkstraPathFinder {
     fn find_path(&self, map: &impl Map) -> Result<Vec<Position>> {
-        let end = map.bound();
-        let end = (end.0 - 1, end.1 - 1);
+        let (start, end) = (map.start(), map.end());
         let shortest = pathfinding::directed::dijkstra::dijkstra(
-            &self.start,
+            &start,
             |xy| valid_map_steps(map, *xy).map(add_cost),
             |coord| *coord == end,
         )
@@ -287,16 +178,14 @@ impl PathFinder for DijkstraPathFinder {
     }
 }
 
+/// Path finding using the A* algorithm.
 #[allow(dead_code)]
-struct AStarPathFinder {
-    start: Position,
-}
+struct AStarPathFinder {}
 impl PathFinder for AStarPathFinder {
     fn find_path(&self, map: &impl Map) -> Result<Vec<Position>> {
-        let end = map.bound();
-        let end = (end.0 - 1, end.1 - 1);
+        let (start, end) = (map.start(), map.end());
         let shortest = pathfinding::directed::astar::astar(
-            &self.start,
+            &start,
             |xy| valid_map_steps(map, *xy).map(add_cost),
             |_| 0,
             |coord| *coord == end,
@@ -306,7 +195,7 @@ impl PathFinder for AStarPathFinder {
     }
 }
 
-/// Add a cost of 1 to the value for pathfinding.
+/// Helper function to add a cost of 1 to the value for pathfinding.
 fn add_cost<T>(value: T) -> (T, usize) {
     (value, 1)
 }
@@ -316,6 +205,7 @@ fn add_cost<T>(value: T) -> (T, usize) {
 /// A valid step is one that is within the bounds of the map and is not blocked by a rock.
 /// Or more generically, a position that the map says we can move to.
 fn valid_map_steps(map: &impl Map, cur_xy: Position) -> impl Iterator<Item = Position> {
+    // All directions we could go.
     const DIRECTIONS: [Direction; 4] = [(0, 1), (1, 0), (0, -1), (-1, 0)];
 
     // Get the possible steps from the current position in each direction.
@@ -323,10 +213,11 @@ fn valid_map_steps(map: &impl Map, cur_xy: Position) -> impl Iterator<Item = Pos
         .iter()
         .filter_map(move |dir| add_xy(&cur_xy, dir));
 
-    // Look at each possible step and take only the ones that are valid locations we can move to.
-    let mut valid_positions = possible_steps.filter(move |new_xy| map.can_move_to(&new_xy));
+    // Filter our possible steps by those that are valid to move to in our map.
+    let mut valid_positions = possible_steps.filter(move |new_xy| map.can_move_to(new_xy));
 
-    // There could be up to 4 of these (because 4 directions).  Compute now those that are valid.
+    // There could be up to 4 of these (because 4 directions).  Fill them with the next
+    // valid positions.
     [
         valid_positions.next(),
         valid_positions.next(),
@@ -334,27 +225,33 @@ fn valid_map_steps(map: &impl Map, cur_xy: Position) -> impl Iterator<Item = Pos
         valid_positions.next(),
     ]
     .into_iter()
+    // Filter out the None values.
     .flatten()
+}
+
+/// Create a map (multiple possible options here).
+fn create_map() -> impl Map + MutMap {
+    //use generics::BoundedMap;
+    //use std::collections::BTreeSet;
+    //BoundedMap::<BTreeSet<Position>>::new(MAPSIZE) // Occupied positions backed by a BTreeSet
+    // use std::collections::HashSet;
+    // BoundedMap::<HashSet<Position>>::new(MAPSIZE) // Occupied positions backed by a hash set
+    //BoundedMap::<Vec<Position>>::new(MAPSIZE) // Occupied positions backed by a Vec
+    vec![vec![false; MAPSIZE.0]; MAPSIZE.1] // 2D array represented by vectors
+                                            //[[false; MAPSIZE.0]; MAPSIZE.1] // 2D array
+}
+
+/// Create a path finder (multiple possible options here).
+fn create_finder() -> impl PathFinder {
+    DijkstraPathFinder {}
+    //AStarPathFinder{}
+    //FringePathFinder{}
 }
 
 /// Solution to part 1
 #[aoc(day18, part1)]
 fn solve_part1(input: &str) -> Result<usize> {
-    let falling = parse(input);
-    solve_part1_impl(falling, create_map(), create_finder())
-}
-
-fn create_map() -> impl Map {
-    //BoundedMap::<BTreeSet<Position>>::new(MAPSIZE)
-    //    BoundedMap::<HashSet<Position>>::new(MAPSIZE)
-    //vec![vec![false; MAPSIZE.0]; MAPSIZE.1]
-    [[false; MAPSIZE.0]; MAPSIZE.1]
-}
-
-fn create_finder() -> impl PathFinder {
-    DijkstraPathFinder { start: (0, 0) }
-    //AStarPathFinder { start: (0, 0) }
-    //FringePathFinder { start: (0, 0) }
+    solve_part1_impl(parse(input), create_map(), create_finder())
 }
 
 /// Solution to part 2
@@ -365,13 +262,18 @@ fn solve_part2(input: &str) -> Result<String> {
     Ok(format!("{},{}", solution.0, solution.1))
 }
 
+/// Parse the input, providing an iterator that provides positions.
+/// The parsing could fail, so each position is a fallible result.
 fn parse(s: &str) -> impl Iterator<Item = Result<Position>> + '_ {
+    // Each line has an x,y coordinate.
     let s = s.lines();
     let coords = s
+        // Split the line in two separated by a comma.
         .map(|line| {
             line.split_once(",")
                 .ok_or_else(|| anyhow::anyhow!("bad split"))
         })
+        // Parse the two values into a position.
         .map(|xy| {
             let (x, y) = xy?;
             Ok((x.parse()?, y.parse()?))

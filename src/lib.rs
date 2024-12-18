@@ -64,7 +64,7 @@ where
     }
     fn bound(&self) -> Position {
         (
-            self.get(0).map(|r| r.as_ref().len()).unwrap_or(0),
+            self.first().map(|r| r.as_ref().len()).unwrap_or(0),
             self.len(),
         )
     }
@@ -86,7 +86,7 @@ where
     }
     fn bound(&self) -> Position {
         (
-            self.get(0).map(|r| r.as_ref().len()).unwrap_or(0),
+            self.first().map(|r| r.as_ref().len()).unwrap_or(0),
             self.len(),
         )
     }
