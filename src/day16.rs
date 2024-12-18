@@ -49,10 +49,7 @@ fn solve_part1_impl(input: &Data) -> Result<(Vec<Orientation>, usize)> {
 
 // maze_moves returns a generated Iterator rather than a static
 // vec so that we're not allocating.
-fn maze_moves<'a>(
-    o: &'a Orientation,
-    maze: &'a Maze,
-) -> impl Iterator<Item = (Orientation, usize)> {
+fn maze_moves(o: &Orientation, maze: &Maze) -> impl Iterator<Item = (Orientation, usize)> {
     // We can always turn
     let turns = [
         (
@@ -69,7 +66,8 @@ fn maze_moves<'a>(
             },
             1000,
         ),
-    ];
+    ]
+    .into_iter();
 
     let _step_forward = (|| {
         let xy = add_xy(&o.position, &o.direction)?;
@@ -175,7 +173,7 @@ fn maze_moves<'a>(
         None
     };
 
-    turns.into_iter().chain(step_forward)
+    turns.chain(step_forward)
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
