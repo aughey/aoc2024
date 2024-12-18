@@ -71,24 +71,86 @@ fn maze_moves<'a>(
         ),
     ];
 
-    let make_step_forward = || {
+    let _step_forward = (|| {
         let xy = add_xy(&o.position, &o.direction)?;
         let cell = maze.get(xy.1)?.get(xy.0)?;
-        if cell == &Cell::Wall {
-            None
-        } else {
-            Some((
+        (cell != &Cell::Wall).then_some((
+            Orientation {
+                position: xy,
+                direction: o.direction,
+            },
+            1,
+        ))
+    })();
+
+    let _step_forward = (|| {
+        let next_xy = add_xy(&o.position, &o.direction)?;
+        let forward_cell = maze.get(next_xy.1)?.get(next_xy.0);
+        let non_wall = forward_cell.filter(|cell| cell != &&Cell::Wall);
+        non_wall.map(|_| {
+            (
                 Orientation {
-                    position: xy,
+                    position: add_xy(&o.position, &o.direction).unwrap(),
                     direction: o.direction,
                 },
                 1,
-            ))
-        }
-    };
-    let step_forward = make_step_forward();
+            )
+        })
+    })();
 
-    turns.into_iter().chain(step_forward.into_iter())
+    // Compute xy, get the maze cell, check if it's not a wall, and return the new orientation
+    let _step_forward = add_xy(&o.position, &o.direction)
+        .and_then(|xy| maze.get(xy.1)?.get(xy.0))
+        .filter(|cell| cell != &&Cell::Wall)
+        .map(|_| {
+            (
+                Orientation {
+                    position: add_xy(&o.position, &o.direction).unwrap(),
+                    direction: o.direction,
+                },
+                1,
+            )
+        });
+
+    let _step_forward = add_xy(&o.position, &o.direction)
+        .and_then(|forward_xy| maze.get(forward_xy.1)?.get(forward_xy.0))
+        .map(|forward_cell| forward_cell != &Cell::Wall)
+        .filter(|not_wall| *not_wall)
+        .map(|_| {
+            (
+                Orientation {
+                    position: add_xy(&o.position, &o.direction).unwrap(),
+                    direction: o.direction,
+                },
+                1,
+            )
+        });
+
+    let step_forward = if let Some(xy) = add_xy(&o.position, &o.direction) {
+        if let Some(row) = maze.get(xy.1) {
+            if let Some(cell) = row.get(xy.0) {
+                if cell != &Cell::Wall {
+                    Some((
+                        Orientation {
+                            position: xy,
+                            direction: o.direction,
+                        },
+                        1,
+                    ))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    turns.into_iter().chain(step_forward)
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
