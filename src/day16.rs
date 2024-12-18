@@ -93,34 +93,23 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
     // find the start
     let start_pos = start_pos(maze)?;
 
-    let mut found = None;
-    for max in (100..).step_by(10) {
-        println!("Trying max {}", max);
-        let all = pathfinding::directed::yen::yen(
-            &start_pos,
-            |xy| maze_moves(xy, maze).collect::<Vec<_>>(),
-            |xy| maze[xy.position.1][xy.position.0] == Cell::End,
-            max,
-        );
-        let mut s = all.iter();
-        let first = s
-            .next()
-            .map(|p| p.1)
-            .ok_or_else(|| anyhow::anyhow!("No path found"))?;
-        if s.any(|p| p.1 != first) {
-            let unique = all
-                .into_iter()
-                .filter(|p| p.1 == first)
-                .flat_map(|p| p.0.into_iter().map(|p| p.position))
-                .collect::<HashSet<_>>();
-            found = Some(unique);
-            break;
-        }
-    }
+    // use astar this time
+    let astar = pathfinding::directed::astar::astar_bag(
+        &start_pos,
+        |xy| maze_moves(xy, maze).collect::<Vec<_>>(),
+        |_| 0,
+        |xy| maze[xy.position.1][xy.position.0] == Cell::End,
+    )
+    .ok_or_else(|| anyhow::anyhow!("Could not construct astart solver"))?;
 
-    Ok(found
-        .ok_or_else(|| anyhow::anyhow!("No unique path found"))?
-        .len())
+    let astar = astar.0;
+    let found = astar
+        .into_iter()
+        .flatten()
+        .map(|o| o.position)
+        .collect::<HashSet<_>>();
+
+    Ok(found.len())
 }
 
 #[allow(dead_code)]
