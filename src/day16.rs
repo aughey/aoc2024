@@ -100,7 +100,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         |_| 0,
         |xy| maze[xy.position.1][xy.position.0] == Cell::End,
     )
-    .ok_or_else(|| anyhow::anyhow!("Could not construct astart solver"))?;
+    .ok_or_else(|| anyhow::anyhow!("Could not construct astar solver"))?;
 
     let astar = astar.0;
     let found = astar
