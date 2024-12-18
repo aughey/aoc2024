@@ -9,6 +9,7 @@ pub mod day15;
 pub mod day16;
 pub mod day17;
 pub mod day18;
+pub mod day18_old;
 pub mod day2;
 pub mod day3;
 pub mod day4;
@@ -36,6 +37,7 @@ pub trait GetCell<T> {
         self.get_cell(xy)
             .ok_or_else(|| anyhow::anyhow!("no cell at {:?}", xy))
     }
+    fn bound(&self) -> Position;
 }
 
 /// A trait for things that can provide a mutable cell reference given a position.
@@ -60,6 +62,12 @@ where
     fn get_cell(&self, xy: &Position) -> Option<&T> {
         self.get(xy.1)?.as_ref().get(xy.0)
     }
+    fn bound(&self) -> Position {
+        (
+            self.get(0).map(|r| r.as_ref().len()).unwrap_or(0),
+            self.len(),
+        )
+    }
 }
 impl<T, INNER> GetCellMut<T> for &mut [INNER]
 where
@@ -75,6 +83,12 @@ where
 {
     fn get_cell(&self, xy: &Position) -> Option<&T> {
         self.get(xy.1)?.as_ref().get(xy.0)
+    }
+    fn bound(&self) -> Position {
+        (
+            self.get(0).map(|r| r.as_ref().len()).unwrap_or(0),
+            self.len(),
+        )
     }
 }
 
