@@ -39,7 +39,7 @@ fn solve_part1_impl(input: &Data) -> Result<(Vec<Orientation>, usize)> {
 
     let shortest = pathfinding::directed::dijkstra::dijkstra(
         &start_pos,
-        |xy| maze_moves(xy, maze).collect::<Vec<_>>(),
+        |xy| maze_moves(xy, maze),
         |xy| maze[xy.position.1][xy.position.0] == Cell::End,
     )
     .ok_or_else(|| anyhow::anyhow!("No path found"))?;
@@ -47,12 +47,14 @@ fn solve_part1_impl(input: &Data) -> Result<(Vec<Orientation>, usize)> {
     Ok(shortest)
 }
 
+// maze_moves returns a generated Iterator rather than a static
+// vec so that we're not allocating.
 fn maze_moves<'a>(
     o: &'a Orientation,
     maze: &'a Maze,
-) -> impl Iterator<Item = (Orientation, usize)> + 'a {
+) -> impl Iterator<Item = (Orientation, usize)> {
     // We can always turn
-    let moves = [
+    let turns = [
         (
             Orientation {
                 position: o.position,
@@ -69,7 +71,7 @@ fn maze_moves<'a>(
         ),
     ];
 
-    let make_cell = || {
+    let make_step_forward = || {
         let xy = add_xy(&o.position, &o.direction)?;
         let cell = maze.get(xy.1)?.get(xy.0)?;
         if cell == &Cell::Wall {
@@ -84,8 +86,9 @@ fn maze_moves<'a>(
             ))
         }
     };
+    let step_forward = make_step_forward();
 
-    moves.into_iter().chain([make_cell()].into_iter().flatten())
+    turns.into_iter().chain(step_forward.into_iter())
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
@@ -96,7 +99,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
     // use astar this time
     let astar = pathfinding::directed::astar::astar_bag(
         &start_pos,
-        |xy| maze_moves(xy, maze).collect::<Vec<_>>(),
+        |xy| maze_moves(xy, maze),
         |_| 0,
         |xy| maze[xy.position.1][xy.position.0] == Cell::End,
     )
