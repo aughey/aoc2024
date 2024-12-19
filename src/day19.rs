@@ -5,19 +5,25 @@ use std::fmt::Display;
 
 pub const DAY: u32 = 19;
 
-fn possible_counts(pattern: &str, towels: &[impl AsRef<str>]) -> usize {
-    let pattern = pattern.to_string();
+fn possible_counts<'a>(
+    original_pattern: &str,
+    towels: impl Iterator<Item = &'a str> + Clone,
+) -> usize {
     pathfinding::directed::count_paths::count_paths(
-        pattern,
-        |p| {
+        original_pattern,
+        |sub_pattern| {
             towels
-                .iter()
-                .map(|d| d.as_ref())
-                .filter_map(|d| Some((p.get(..d.len())?, d)))
-                .filter(|(p, d)| p == d)
-                .map(|(_, d)| p.get(d.len()..).unwrap())
-                .map(|p| p.to_string())
-                .collect::<Vec<_>>()
+                .clone()
+                // Create a tuple with the head of the pattern the same
+                // length as the towel and the towel itself.
+                .filter_map(|towel| Some((sub_pattern.get(..towel.len())?, towel)))
+                // Filter to include tuples where the head and towel match.
+                // i.e. the pattern starts with the towel and can be used.
+                .filter(|(pattern_head, towel)| pattern_head == towel)
+                // Create a tuple with the tail of the pattern and the towel.
+                // Safety: Unwrap is safe here because we got the head of the
+                // same length earlier.
+                .map(|(_, towel)| sub_pattern.get(towel.len()..).unwrap())
         },
         |p| p.is_empty(),
     )
@@ -27,7 +33,7 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     Ok(input
         .patterns
         .iter()
-        .filter(|p| possible_counts(p, &input.towels) > 0)
+        .filter(|p| possible_counts(p, input.towels.iter().map(|t| *t)) > 0)
         .count())
 }
 
@@ -35,7 +41,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
     Ok(input
         .patterns
         .iter()
-        .map(|p| possible_counts(p, &input.towels))
+        .map(|p| possible_counts(p, input.towels.iter().map(|t| *t)))
         .sum())
 }
 
@@ -55,26 +61,18 @@ fn solve_part2(input: &str) -> Result<usize> {
 
 /// Problem input
 #[derive(Debug)]
-struct Data {
-    towels: Vec<String>,
-    patterns: Vec<String>,
+struct Data<'a> {
+    towels: Vec<&'a str>,
+    patterns: Vec<&'a str>,
 }
-impl Data {
-    fn parse(s: &str) -> Result<Self> {
+impl<'a> Data<'a> {
+    fn parse(s: &'a str) -> Result<Self> {
         let (towels, patterns) = s
             .split_once("\n\n")
             .ok_or_else(|| anyhow::anyhow!("Invalid input split"))?;
 
-        let towels = towels
-            .split(',')
-            .map(|s| s.trim())
-            .map(|s| s.to_string())
-            .collect();
-        let patterns = patterns
-            .split('\n')
-            .map(|s| s.trim())
-            .map(|s| s.to_string())
-            .collect();
+        let towels = towels.split(',').map(|s| s.trim()).collect();
+        let patterns = patterns.split('\n').map(|s| s.trim()).collect();
 
         Ok(Data { towels, patterns })
     }
