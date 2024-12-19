@@ -34,15 +34,26 @@ pub trait Map {
     }
 }
 
+pub trait Contains<T> {
+    fn contains(&self, value: &T) -> bool;
+}
+
 /// A container that behaves like a HashSet.
 ///
 /// This is used to abstract over the different types of containers.
 /// This is to provide a trait for things that can be put into a container.
-pub trait HashContainer<T> {
-    /// Returns true if this container contains the given value.
-    fn contains(&self, value: &T) -> bool;
+pub trait HashContainer<T>: Contains<T> {
     /// Insert the given value into the container.
     fn insert(&mut self, value: T) -> bool;
+}
+
+impl<T> Contains<T> for HashSet<T>
+where
+    T: std::hash::Hash + Eq,
+{
+    fn contains(&self, value: &T) -> bool {
+        HashSet::contains(self, value)
+    }
 }
 
 /// Teach the compiler how HashSets look like HashContainers.
@@ -53,11 +64,17 @@ impl<T> HashContainer<T> for HashSet<T>
 where
     T: std::hash::Hash + Eq,
 {
-    fn contains(&self, value: &T) -> bool {
-        HashSet::contains(self, value)
-    }
     fn insert(&mut self, value: T) -> bool {
         HashSet::insert(self, value)
+    }
+}
+
+impl<T> Contains<T> for BTreeSet<T>
+where
+    T: Ord,
+{
+    fn contains(&self, value: &T) -> bool {
+        BTreeSet::contains(self, value)
     }
 }
 
@@ -68,11 +85,17 @@ impl<T> HashContainer<T> for BTreeSet<T>
 where
     T: Ord,
 {
-    fn contains(&self, value: &T) -> bool {
-        BTreeSet::contains(self, value)
-    }
     fn insert(&mut self, value: T) -> bool {
         BTreeSet::insert(self, value)
+    }
+}
+
+impl<T> Contains<T> for Vec<T>
+where
+    T: PartialEq,
+{
+    fn contains(&self, value: &T) -> bool {
+        self.iter().any(|v| v == value)
     }
 }
 
@@ -81,9 +104,6 @@ impl<T> HashContainer<T> for Vec<T>
 where
     T: PartialEq,
 {
-    fn contains(&self, value: &T) -> bool {
-        self.iter().any(|v| v == value)
-    }
     fn insert(&mut self, value: T) -> bool {
         Vec::push(self, value);
         true

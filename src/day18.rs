@@ -1,8 +1,8 @@
 mod generics;
 use crate::{add_xy, Direction, Position, Result};
 use aoc_runner_derive::aoc;
-use generics::{Map, MutMap};
-use std::{collections::HashSet, fmt::Display};
+use generics::{HashContainer, Map, MutMap};
+use std::fmt::Display;
 
 pub const DAY: u32 = 18;
 
@@ -59,40 +59,37 @@ trait PreviousPath {
     }
 }
 
-/// Implement PathRemember for an Optional Vec<Position>.
-impl PreviousPath for Option<Vec<Position>> {
+// /// Implement PathRemember for an Optional Vec<Position>.
+// impl PreviousPath for Option<Vec<Position>> {
+//     fn will_be_affected_by(&self, rock_at: &Position) -> bool {
+//         // If we have a path...
+//         if let Some(prev_path) = self.as_ref() {
+//             // ...and the new rock is in the path, then it will affect the best path.
+//             prev_path.contains(rock_at)
+//         } else {
+//             // If we don't have a path then by definition it is affected.
+//             true
+//         }
+//     }
+
+//     // Replace the path with a new one.
+//     fn remember_path(&mut self, path: Vec<Position>) {
+//         self.replace(path);
+//     }
+// }
+
+impl<T> PreviousPath for Option<T>
+where
+    T: HashContainer<Position> + FromIterator<Position>,
+{
     fn will_be_affected_by(&self, rock_at: &Position) -> bool {
-        // If we have a path...
         if let Some(prev_path) = self.as_ref() {
-            // ...and the new rock is in the path, then it will affect the best path.
             prev_path.contains(rock_at)
         } else {
-            // If we don't have a path then by definition it is affected.
             true
         }
     }
 
-    // Replace the path with a new one.
-    fn remember_path(&mut self, path: Vec<Position>) {
-        self.replace(path);
-    }
-}
-
-/// Implement PathRemember for an Optional HashSet<Position>.
-/// This is more academic to show what it would look like.
-impl PreviousPath for Option<HashSet<Position>> {
-    fn will_be_affected_by(&self, rock_at: &Position) -> bool {
-        // If we have a path...
-        if let Some(prev_path) = self.as_ref() {
-            // ...and the new rock is in the path, then it will affect the best path.
-            prev_path.contains(rock_at)
-        } else {
-            // If we don't have a path then by definition it is affected.
-            true
-        }
-    }
-
-    // Replace the path with a new one.
     fn remember_path(&mut self, path: Vec<Position>) {
         self.replace(path.into_iter().collect());
     }
@@ -294,6 +291,8 @@ pub fn part2(input: &str) -> impl Display {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use crate::test_data;
     use test_log::test;
 
@@ -307,5 +306,34 @@ mod tests {
     #[test]
     fn part2_example() {
         assert_eq!(solve_part2(&test_data(super::DAY).unwrap()).unwrap(), "6,1");
+    }
+
+    fn test_affected_by_generic<T: PreviousPath + Default>() {
+        let mut prev_path = T::default();
+        // always starts with returning true
+        assert_eq!(prev_path.will_be_affected_by(&(0, 0)), true);
+        assert_eq!(prev_path.will_be_affected_by(&(1, 1)), true);
+        // remember a path
+        prev_path.remember_path(vec![(0, 0), (1, 1)]);
+        // now it should return true for the path remembered
+        assert_eq!(prev_path.will_be_affected_by(&(0, 0)), true);
+        assert_eq!(prev_path.will_be_affected_by(&(1, 1)), true);
+        // but not for others
+        assert_eq!(prev_path.will_be_affected_by(&(0, 1)), false);
+        assert_eq!(prev_path.will_be_affected_by(&(1, 0)), false);
+        // try another
+        prev_path.remember_path(vec![(0, 1), (1, 0)]);
+        // now it should return true for the path remembered
+        assert_eq!(prev_path.will_be_affected_by(&(0, 1)), true);
+        assert_eq!(prev_path.will_be_affected_by(&(1, 0)), true);
+        // and not the one before
+        assert_eq!(prev_path.will_be_affected_by(&(0, 0)), false);
+        assert_eq!(prev_path.will_be_affected_by(&(1, 1)), false);
+    }
+
+    #[test]
+    fn test_affected_by() {
+        test_affected_by_generic::<Option<Vec<Position>>>();
+        test_affected_by_generic::<Option<HashSet<Position>>>();
     }
 }
