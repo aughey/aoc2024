@@ -19,5 +19,9 @@ test-log = { version = "0.2.16", features = ["trace"] }
 tracing = "0.1.41"
 z3 = "0.12.1"
 
+[[bench]]
+name = "my_benchmark"
+harness = false
+
 [dev-dependencies]
-criterion = { version = "2.7.2", package = "codspeed-criterion-compat" }
+criterion = "0.5.1"
