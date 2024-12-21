@@ -4,7 +4,6 @@ use crate::Position;
 use crate::{parse_grid, Result};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
-use pathfinding::directed::dijkstra;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator as _;
 use std::fmt::Display;
@@ -209,7 +208,7 @@ fn successors(
             (_, _) => Some((xy, false)),
         }
     });
-    let mut meta = next_spaces.map(|(p, is_cheat)| XYMeta {
+    let meta = next_spaces.map(|(p, is_cheat)| XYMeta {
         pos: p,
         depth: in_pos.depth + 1,
         cheat_count: if is_cheat {

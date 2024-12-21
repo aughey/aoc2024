@@ -13,6 +13,7 @@ pub mod day18_old;
 pub mod day19;
 pub mod day2;
 pub mod day20;
+pub mod day21;
 pub mod day3;
 pub mod day4;
 pub mod day5;
@@ -249,6 +250,22 @@ pub fn add_xy_result(cur_cell: &Position, direction: &Direction) -> Result<Posit
             .checked_add_signed(direction.1)
             .ok_or_else(|| anyhow::anyhow!("invalid movement"))?,
     ))
+}
+
+pub fn find_xy<'a, INNER, T, U>(grid: &'a [INNER], value: &U) -> Option<(Position, &'a T)>
+where
+    INNER: AsRef<[T]>,
+    T: PartialEq<U>,
+{
+    grid.iter()
+        .enumerate()
+        .flat_map(|(y, row)| {
+            row.as_ref()
+                .iter()
+                .enumerate()
+                .map(move |(x, cell)| ((x, y), cell))
+        })
+        .find(|(_, cell)| *cell == value)
 }
 
 pub fn add_xy(xy: &Position, direction: &Direction) -> Option<Position> {
