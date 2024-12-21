@@ -325,3 +325,240 @@ mod tests {
         assert_eq!(solve_part2(&test_data(super::DAY).unwrap()).unwrap(), 64);
     }
 }
+
+// Playing around with implementing my own search algorithm.
+#[cfg(test)]
+#[allow(dead_code)]
+mod mydi {
+    use std::collections::{BTreeSet, HashMap, HashSet};
+
+    use crate::{
+        add_xy,
+        day16::{start_pos, Cell},
+        parse_grid, test_data, Position,
+    };
+
+    use super::Maze;
+    struct Visit<C, N>
+    where
+        C: pathfinding::num_traits::Zero + Ord + Copy,
+        N: Eq + std::hash::Hash + Clone,
+    {
+        total_cost: C,
+        node: N,
+    }
+    impl<C, N> PartialEq for Visit<C, N>
+    where
+        C: pathfinding::num_traits::Zero + Ord + Copy,
+        N: Eq + std::hash::Hash + Clone,
+    {
+        fn eq(&self, other: &Self) -> bool {
+            self.total_cost == other.total_cost
+        }
+    }
+    impl<C, N> PartialOrd for Visit<C, N>
+    where
+        C: pathfinding::num_traits::Zero + Ord + Copy,
+        N: Eq + std::hash::Hash + Clone,
+    {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            Some(self.total_cost.cmp(&other.total_cost))
+        }
+    }
+    impl<C, N> Eq for Visit<C, N>
+    where
+        C: pathfinding::num_traits::Zero + Ord + Copy,
+        N: Eq + std::hash::Hash + Clone,
+    {
+    }
+    impl<C, N> Ord for Visit<C, N>
+    where
+        C: pathfinding::num_traits::Zero + Ord + Copy,
+        N: Eq + std::hash::Hash + Clone,
+    {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            self.total_cost.cmp(&other.total_cost)
+        }
+    }
+
+    struct Marking<N, C>
+    where
+        N: Eq + std::hash::Hash + Clone,
+        C: pathfinding::num_traits::Zero + Ord + Copy,
+    {
+        cost: C,
+        prev_node: N,
+    }
+
+    fn mydijkstra<N, C, FN, IN, FS>(
+        start: &N,
+        mut successors: FN,
+        mut success: FS,
+    ) -> Option<(Vec<N>, C)>
+    where
+        N: Eq + std::hash::Hash + Clone,
+        C: pathfinding::num_traits::Zero + Ord + Copy,
+        FN: FnMut(&N) -> IN,
+        IN: IntoIterator<Item = (N, C)>,
+        FS: FnMut(&N) -> bool,
+    {
+        let mut visit_queue = Vec::new();
+        visit_queue.push(start.clone());
+
+        let mut markings: HashMap<N, Marking<N, C>> = HashMap::new();
+        markings.insert(
+            start.clone(),
+            Marking {
+                cost: C::zero(),
+                prev_node: start.clone(),
+            },
+        );
+
+        let mut end_node = None;
+        let mut visited = HashSet::new();
+
+        while let Some(to_visit) = visit_queue.pop() {
+            if visited.contains(&to_visit) {
+                continue;
+            }
+            visited.insert(to_visit.clone());
+
+            let mut child_nodes = BTreeSet::new();
+            let my_cost = markings
+                .get(&to_visit)
+                .expect("Must have already seen")
+                .cost
+                .clone();
+
+            let next_nodes = successors(&to_visit).into_iter();
+            for (n, cost) in next_nodes {
+                let this_cost = my_cost + cost;
+
+                let already_visited = if let Some(marking) = markings.get_mut(&n) {
+                    if success(&n) {
+                        end_node = Some(n.clone());
+                    }
+                    if this_cost < marking.cost {
+                        marking.cost = this_cost;
+                        marking.prev_node = to_visit.clone();
+                    }
+                    true
+                } else {
+                    markings.insert(
+                        n.clone(),
+                        Marking {
+                            cost: this_cost,
+                            prev_node: to_visit.clone(),
+                        },
+                    );
+                    false
+                };
+                if !already_visited {
+                    child_nodes.insert(Visit {
+                        total_cost: this_cost,
+                        node: n.clone(),
+                    });
+                }
+            }
+            visit_queue.extend(child_nodes.into_iter().map(|n| n.node));
+        }
+
+        // Go backwards to find the path
+        let mut path = Vec::new();
+        let mut cur_node = end_node.as_ref()?;
+        let mut total_cost = C::zero();
+        while cur_node != start {
+            path.push(cur_node.clone());
+            let cur = markings.get(cur_node)?;
+            total_cost = total_cost + cur.cost;
+            cur_node = &cur.prev_node;
+        }
+        Some((path, total_cost))
+    }
+
+    #[test]
+    fn test_btree_ordering() {
+        let mut btree = BTreeSet::new();
+        btree.insert(Visit {
+            total_cost: 1,
+            node: 1,
+        });
+        btree.insert(Visit {
+            total_cost: 3,
+            node: 3,
+        });
+        btree.insert(Visit {
+            total_cost: 2,
+            node: 2,
+        });
+        let nodes = btree.into_iter().map(|v| v.node).collect::<Vec<_>>();
+        assert_eq!(nodes, vec![1, 2, 3]);
+    }
+    #[test]
+    fn test_my_di() -> anyhow::Result<()> {
+        let maze: Vec<Vec<Cell>> = parse_grid(&test_data(super::DAY)?)?;
+
+        let maze = &maze;
+
+        let start_pos = start_pos(maze)?.position;
+
+        let directions = &[(-1, 0), (0, -1), (1, 0), (0, 1)];
+
+        let shortest = pathfinding::directed::dijkstra::dijkstra(
+            &start_pos,
+            |xy| {
+                directions
+                    .iter()
+                    .filter_map(|dir| {
+                        let xy = add_xy(&xy, dir)?;
+                        let cell = maze.get(xy.1)?.get(xy.0)?;
+                        (cell != &Cell::Wall).then_some((xy, 1))
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            },
+            |xy| maze[xy.1][xy.0] == Cell::End,
+        )
+        .ok_or_else(|| anyhow::anyhow!("No path found"))?;
+
+        let shortest_length = shortest.0.len();
+        //      print_maze2(maze, shortest.0.as_slice());
+        assert_eq!(shortest_length, 41);
+
+        let _shortest = mydijkstra(
+            &start_pos,
+            |xy| {
+                directions
+                    .iter()
+                    .filter_map(|dir| {
+                        let xy = add_xy(&xy, dir)?;
+                        let cell = maze.get(xy.1)?.get(xy.0)?;
+                        (cell != &Cell::Wall).then_some((xy, 1))
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            },
+            |xy| maze[xy.1][xy.0] == Cell::End,
+        )
+        .ok_or_else(|| anyhow::anyhow!("No path found"))?;
+        //       print_maze2(maze, &shortest.0);
+        //        assert_eq!(shortest.0.len(), 41);
+
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    fn print_maze2(maze: &Maze, path_points: &[Position]) {
+        for (y, row) in maze.iter().enumerate() {
+            for (x, cell) in row.iter().enumerate() {
+                let c = if path_points.contains(&(x, y)) {
+                    'O'
+                } else {
+                    Into::<char>::into(cell)
+                };
+                print!("{}", c);
+            }
+            println!();
+        }
+    }
+}
