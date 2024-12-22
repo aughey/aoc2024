@@ -27,7 +27,8 @@ type Keypad = HashMap<char, I8Vec2>;
 
 // Key is (destination, robot_states)
 // Value is (commands, new_robot_states)
-type Cache = HashMap<(char, Vec<char>), (Vec<char>, Vec<char>)>;
+//type Cache = HashMap<(char, Vec<char>), (Vec<char>, Vec<char>)>;
+type Cache = lru::LruCache<(char, Vec<char>), (Vec<char>, Vec<char>)>;
 
 fn compute_code_dynamic(
     code: &str,
@@ -67,7 +68,13 @@ fn compute_char_dynamic(
     }
     // If we're already there, we don't need to do anything
     if robot_states[0] == to {
-        return (vec![], robot_states.to_vec());
+        // Have our sub-robots press A
+        let (commands,states) = compute_char_dynamic('A', &robot_states[1..], &robot_keypads[1..], cache);
+        let mut states = states;
+        states.insert(0, to);
+        return (commands, states);
+
+//        return (vec![], robot_states.to_vec());
     }
 
     let my_char = robot_states[0];
@@ -114,15 +121,10 @@ fn compute_char_dynamic(
         let (end_commands, end_robot_states) =
             compute_char_dynamic(to, &new_robot_states, &robot_keypads, cache);
 
-        // Now press 'A'
-        let (a_commands, a_robot_states) =
-            compute_char_dynamic('A', &end_robot_states, &robot_keypads, cache);
-
         // Combine all the commands
         let mut commands = move_commands;
         commands.extend_from_slice(&end_commands);
-        commands.extend_from_slice(&a_commands);
-        options.push((commands, a_robot_states));
+        options.push((commands, end_robot_states));
     }
     // Find the shortest path
     let (commands, new_robot_states) = options
@@ -131,7 +133,7 @@ fn compute_char_dynamic(
         .expect("No path found");
 
     // This is our answer
-    cache.insert(key, (commands.clone(), new_robot_states.clone()));
+   cache.put(key, (commands.clone(), new_robot_states.clone()));
 
     (commands, new_robot_states)
 }
@@ -346,10 +348,11 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
 
     let mut sum = 0;
 
-    let keypads = [&numeric_keypad]; // &directional_keypad, &directional_keypad];
-    let mut cache = Cache::new();
+    let keypads = [&numeric_keypad, &directional_keypad, &directional_keypad];
+    let mut cache = Cache::new(std::num::NonZeroUsize::new(1000).unwrap());
+
     for &code in &input.codes {
-        let robot_states = ['A']; //, 'A', 'A'];
+        let robot_states = ['A', 'A', 'A'];
         println!("code {}", code);
         {
             let sequence = compute_code_dynamic(code, &robot_states, &keypads, &mut cache);
@@ -377,9 +380,38 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     Ok(sum)
 }
 
-fn solve_part2_impl(_input: &Data) -> Result<usize> {
-    // XXX: Solving logic for part 2
-    Ok(0)
+fn solve_part2_impl(input: &Data) -> Result<usize> {
+    let numeric_keypad = [
+        ['7', '8', '9'],
+        ['4', '5', '6'],
+        ['1', '2', '3'],
+        [' ', '0', 'A'],
+    ];
+    let numeric_keypad = keypad_to_xy(numeric_keypad.as_slice());
+
+    let directional_keypad = [[' ', '^', 'A'], ['<', 'v', '>']];
+    let directional_keypad = keypad_to_xy(directional_keypad.as_slice());
+
+    let mut sum = 0;
+
+    let keypads = [&numeric_keypad];
+
+    let mut cache = Cache::new(std::num::NonZeroUsize::new(20).unwrap());
+    let keypads = keypads.into_iter().chain((0..25).map(|_| &directional_keypad)).collect::<Vec<_>>();
+
+    for &code in &input.codes {
+        let robot_states = keypads.iter().map(|_| 'A').collect::<Vec<_>>(); // ['A', 'A', 'A'];
+        println!("code {}", code);
+        {
+            let sequence = compute_code_dynamic(code, &robot_states, &keypads, &mut cache);
+            let sequence = sequence.into_iter().collect::<String>();
+            println!("compute_path path {}", sequence);
+            let num = code[..code.len() - 1].parse::<usize>()?;
+            sum += num * sequence.len();
+            println!("{} * {}", num, sequence.len());
+        }
+    }
+    Ok(sum)
 }
 
 /// Solution to part 1
