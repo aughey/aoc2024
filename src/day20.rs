@@ -32,6 +32,7 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
         &XYMeta {
             pos: start,
             depth: 0,
+            cheats: vec![],
             cheat_count: 0,
         },
         |p| successors(p, map, None).map(|xy| (xy, 1)),
@@ -47,6 +48,7 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
             depth: 0,
             pos: start,
             cheat_count: 1,
+            cheats: vec![],
         },
         |p| successors(p, map, None).map(|xy| (xy, 1)),
         |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
@@ -124,6 +126,7 @@ struct XYMeta {
     pos: Position,
     cheat_count: usize,
     depth: usize,
+    cheats: Vec<Position>,
 }
 impl AsRef<Position> for XYMeta {
     fn as_ref(&self) -> &Position {
@@ -134,7 +137,9 @@ impl AsRef<Position> for XYMeta {
 impl Eq for XYMeta {}
 impl PartialEq for XYMeta {
     fn eq(&self, other: &Self) -> bool {
-        self.pos == other.pos && self.cheat_count == other.cheat_count && self.depth == other.depth
+        self.pos == other.pos
+        //            && self.cheat_count == other.cheat_count
+          && self.cheats == other.cheats
     }
 }
 impl std::hash::Hash for XYMeta {
@@ -199,6 +204,7 @@ fn successors(
     const DIRECTIONS: [(isize, isize); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
 
     let next_pos = DIRECTIONS.iter().filter_map(|dir| add_xy(&in_pos.pos, dir));
+    let mut cheats = in_pos.cheats.clone();
     let have_available_cheats = in_pos.cheat_count > 0;
     let next_spaces = next_pos.filter_map(move |xy| {
         let cell = map.get_cell(&xy)?;
@@ -211,6 +217,13 @@ fn successors(
     let meta = next_spaces.map(|(p, is_cheat)| XYMeta {
         pos: p,
         depth: in_pos.depth + 1,
+        cheats: if is_cheat {
+            let mut new_cheats = cheats.clone();
+            new_cheats.push(p);
+            new_cheats
+        } else {
+            cheats.clone()
+        },
         cheat_count: if is_cheat {
             in_pos.cheat_count - 1
         } else {
@@ -270,6 +283,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             pos: start,
             cheat_count: 0,
             depth: 0,
+            cheats: vec![],
         },
         |p| successors(p, map, None).map(|xy| (xy, 1)),
         |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
@@ -284,6 +298,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             pos: start,
             cheat_count: 1,
             depth: 0,
+            cheats: vec![],
         },
         |p| successors(p, map, None).map(|xy| (xy, 1)),
         |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
@@ -297,36 +312,29 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
     for save in (1..=64).rev() {
         let max_path_len = shortest_path_len - save;
         println!("Checking max_path_len: {}", max_path_len);
-        // see if there is any solution
-        let dijkstra = pathfinding::directed::dijkstra::dijkstra(
-            &XYMeta {
-                pos: start,
-                cheat_count: 1,
-                depth: 0,
-            },
-            |p| successors(p, map, Some(max_path_len)).map(|xy| (xy, 1usize)),
-            |p| map.get_cell(&p.pos).unwrap() == &Cell::End && p.depth == max_path_len,
-        );
-        if let Some(dijkstra) = dijkstra {
-            let dijkstra_len = dijkstra.0.into_iter().count();
-            println!(
-                "save: {save}, Dijkstra solution count: {}, C: {}",
-                dijkstra_len, dijkstra.1
-            );
-        } else {
-            println!("save: {save}, Dijkstra solution: None");
-            continue;
-        }
 
         let astar = pathfinding::directed::astar::astar_bag(
             &XYMeta {
                 pos: start,
                 cheat_count: 1,
                 depth: 0,
+                cheats: vec![],
             },
-            |p| successors(p, map, None).map(|xy| (xy, 1usize)),
+            |p| {
+                successors(p, map, Some(max_path_len))
+                    .filter(|s| {
+                        if map.get_cell(&s.pos).unwrap() == &Cell::End {
+                            if s.depth != max_path_len {
+                                return false;
+                            }
+                        }
+                        true
+                    })
+                    .map(|xy| (xy, 1usize))
+                    .collect::<Vec<_>>()
+            },
             |_| 0,
-            |p| map.get_cell(&p.pos).unwrap() == &Cell::End && p.depth == max_path_len,
+            |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
         );
         if let Some(astar) = astar {
             let astar_len = astar.0.into_iter().count();
