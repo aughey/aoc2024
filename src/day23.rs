@@ -3,8 +3,9 @@ use anyhow::Context as _;
 use aoc_runner_derive::aoc;
 use itertools::Itertools as _;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     fmt::Display,
+    hash::Hash,
 };
 
 pub const DAY: u32 = 23;
@@ -38,40 +39,65 @@ fn solve_part2_impl(input: &Data) -> Result<String> {
 
     let nodes = mappings.keys().copied().collect::<Vec<_>>();
 
-    let mut largest: Option<HashSet<&str>> = None;
-    for node in nodes.iter().copied() {
-        for child in mappings.get(node).unwrap().iter().copied() {
-            let mut cluster = HashSet::new();
-            cluster.insert(node);
-            cluster.insert(child);
+    let longest_groups = nodes.into_iter().map(|n| {
+        let mut longest = HashSet::new();
+        longest_group(
+            n,
+            &mappings,
+            &mut BTreeSet::new(),
+            &mut longest,
+            &mut HashSet::new(),
+        );
+        longest
+    });
+    let longest_group = longest_groups
+        .max_by_key(|g| g.len())
+        .ok_or_else(|| anyhow::anyhow!("No groups found"))?;
 
-            for possible in nodes.iter().copied() {
-                let possible_children = mappings.get(possible).unwrap();
-            }
-        }
-
-        let nodes_children = mappings.get(node).unwrap();
-        for child in nodes_children.iter().copied() {
-            let grandchildren = mappings.get(child).unwrap();
-            if grandchildren.contains(node) {
-                cluster.insert(child);
-            }
-        }
-        cluster.insert(node);
-        if largest
-            .as_ref()
-            .map(|l| cluster.len() > l.len())
-            .unwrap_or(true)
-        {
-            largest = Some(cluster);
-        }
-    }
-    println!("largest: {:?}", largest);
-    let largest = largest.ok_or_else(|| anyhow::anyhow!("no largest cluster"))?;
-
-    let password = largest.into_iter().sorted().join(",");
+    let password = longest_group.iter().sorted().join(",");
 
     Ok(password)
+}
+
+fn longest_group<'a>(
+    node: &'a str,
+    mappings: &'a HashMap<&'a str, HashSet<&'a str>>,
+    current_group: &mut BTreeSet<&'a str>,
+    longest: &mut HashSet<&'a str>,
+    seen: &mut HashSet<Vec<&'a str>>,
+) -> bool {
+    let key = current_group.iter().copied().collect::<Vec<_>>();
+    if seen.contains(&key) {
+        return false;
+    }
+
+    if current_group.contains(node) {
+        return false;
+    }
+    // If all nodes are not connected to this node
+    let my_connections = mappings.get(node).unwrap();
+    if !current_group.iter().all(|n| my_connections.contains(n)) {
+        return false;
+    }
+
+    current_group.insert(node);
+    let children = mappings.get(node).unwrap();
+    let mut added = false;
+    for child in children {
+        if longest_group(child, mappings, current_group, longest, seen) {
+            added = true;
+        }
+    }
+    if added == false {
+        // See if we're now the longest
+        if current_group.len() > longest.len() {
+            longest.clear();
+            longest.extend(current_group.iter().copied());
+        }
+    }
+    current_group.remove(node);
+    seen.insert(key);
+    added
 }
 
 /// Solution to part 1
@@ -135,7 +161,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
-            "co,de,kd,ta"
+            "co,de,ka,ta"
         );
     }
 }
