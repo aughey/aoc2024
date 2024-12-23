@@ -41,7 +41,8 @@ fn compute_code_dynamic(
     for c in code.chars() {
         let (commands, new_robot_states) =
             compute_char_dynamic(c, robot_states.as_slice(), robot_keypads, cache);
-        //        println!("{} -> {:?}", c, commands);
+        //   println!("{} -> {:?}", c, commands);
+        println!("got {c}");
         robot_states = new_robot_states;
         ret.extend(commands);
     }
@@ -396,20 +397,23 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
     let mut sum = 0;
 
     let keypads = [&numeric_keypad];
-
-    let mut cache = Cache::new(std::num::NonZeroUsize::new(200000).unwrap());
-    for &code in &input.codes {
-        println!("Code: {code}");
-        for chain in 2..10 {
-            let keypads = keypads
-                .into_iter()
-                .chain((0..chain).map(|_| &directional_keypad))
-                .collect::<Vec<_>>();
-            let robot_states = keypads.iter().map(|_| 'A').collect::<Vec<_>>(); // ['A', 'A', 'A'];
-            let sequence = compute_code_dynamic(code, &robot_states, &keypads, &mut cache);
-            println!("  Sequence: {chain} = {}", sequence.len());
-        }
-    }
+    let keypads = keypads
+        .into_iter()
+        .chain((0..25).map(|_| &directional_keypad))
+        .collect::<Vec<_>>();
+    let mut cache = Cache::new(std::num::NonZeroUsize::new(2000000).unwrap());
+    // for &code in &input.codes {
+    //     println!("Code: {code}");
+    //     for chain in 2..25 {
+    //         let keypads = keypads
+    //             .into_iter()
+    //             .chain((0..chain).map(|_| &directional_keypad))
+    //             .collect::<Vec<_>>();
+    //         let robot_states = keypads.iter().map(|_| 'A').collect::<Vec<_>>(); // ['A', 'A', 'A'];
+    //         let sequence = compute_code_dynamic(code, &robot_states, &keypads, &mut cache);
+    //         println!("  Sequence: {chain} = {}", sequence.len());
+    //     }
+    // }
 
     for &code in &input.codes {
         let robot_states = keypads.iter().map(|_| 'A').collect::<Vec<_>>(); // ['A', 'A', 'A'];
