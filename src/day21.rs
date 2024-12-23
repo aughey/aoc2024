@@ -41,7 +41,7 @@ fn compute_code_dynamic(
     for c in code.chars() {
         let (commands, new_robot_states) =
             compute_char_dynamic(c, robot_states.as_slice(), robot_keypads, cache);
-        println!("{} -> {:?}", c, commands);
+        //        println!("{} -> {:?}", c, commands);
         robot_states = new_robot_states;
         ret.extend(commands);
     }
@@ -69,12 +69,13 @@ fn compute_char_dynamic(
     // If we're already there, we don't need to do anything
     if robot_states[0] == to {
         // Have our sub-robots press A
-        let (commands,states) = compute_char_dynamic('A', &robot_states[1..], &robot_keypads[1..], cache);
+        let (commands, states) =
+            compute_char_dynamic('A', &robot_states[1..], &robot_keypads[1..], cache);
         let mut states = states;
         states.insert(0, to);
         return (commands, states);
 
-//        return (vec![], robot_states.to_vec());
+        //        return (vec![], robot_states.to_vec());
     }
 
     let my_char = robot_states[0];
@@ -133,7 +134,7 @@ fn compute_char_dynamic(
         .expect("No path found");
 
     // This is our answer
-   cache.put(key, (commands.clone(), new_robot_states.clone()));
+    cache.put(key, (commands.clone(), new_robot_states.clone()));
 
     (commands, new_robot_states)
 }
@@ -396,8 +397,19 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
 
     let keypads = [&numeric_keypad];
 
-    let mut cache = Cache::new(std::num::NonZeroUsize::new(20).unwrap());
-    let keypads = keypads.into_iter().chain((0..25).map(|_| &directional_keypad)).collect::<Vec<_>>();
+    let mut cache = Cache::new(std::num::NonZeroUsize::new(200000).unwrap());
+    for &code in &input.codes {
+        println!("Code: {code}");
+        for chain in 2..10 {
+            let keypads = keypads
+                .into_iter()
+                .chain((0..chain).map(|_| &directional_keypad))
+                .collect::<Vec<_>>();
+            let robot_states = keypads.iter().map(|_| 'A').collect::<Vec<_>>(); // ['A', 'A', 'A'];
+            let sequence = compute_code_dynamic(code, &robot_states, &keypads, &mut cache);
+            println!("  Sequence: {chain} = {}", sequence.len());
+        }
+    }
 
     for &code in &input.codes {
         let robot_states = keypads.iter().map(|_| 'A').collect::<Vec<_>>(); // ['A', 'A', 'A'];
