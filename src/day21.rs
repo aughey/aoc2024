@@ -28,23 +28,25 @@ type Keypad = HashMap<char, I8Vec2>;
 // Key is (destination, robot_states)
 // Value is (commands, new_robot_states)
 //type Cache = HashMap<(char, Vec<char>), (Vec<char>, Vec<char>)>;
-type Cache = lru::LruCache<(char, Vec<char>), (Vec<char>, Vec<char>)>;
+//type Cache = lru::LruCache<(char, Vec<char>), (Vec<char>, Vec<char>)>;
+type Cache = lru::LruCache<(char, Vec<char>), (usize, Vec<char>)>;
 
 fn compute_code_dynamic(
     code: &str,
     robot_states: &[char],
     robot_keypads: &[&Keypad],
     cache: &mut Cache,
-) -> Vec<char> {
+) -> usize {
     let mut robot_states = robot_states.to_vec();
-    let mut ret = Vec::new();
+    let mut ret = 0; // Vec::new();
     for c in code.chars() {
         let (commands, new_robot_states) =
             compute_char_dynamic(c, robot_states.as_slice(), robot_keypads, cache);
         //   println!("{} -> {:?}", c, commands);
         println!("got {c}");
         robot_states = new_robot_states;
-        ret.extend(commands);
+        ret += commands;
+        //        ret.extend(commands);
     }
     ret
 }
@@ -56,7 +58,7 @@ fn compute_char_dynamic(
     robot_states: &[char],
     robot_keypads: &[&Keypad],
     cache: &mut Cache,
-) -> (Vec<char>, Vec<char>) {
+) -> (usize, Vec<char>) {
     assert_eq!(robot_states.len(), robot_keypads.len());
 
     let key = (to, robot_states.to_vec());
@@ -65,7 +67,7 @@ fn compute_char_dynamic(
     }
     // base state, the robot can press the button directly
     if robot_states.is_empty() {
-        return (vec![to], vec![]);
+        return (1, vec![]);
     }
     // If we're already there, we don't need to do anything
     if robot_states[0] == to {
@@ -125,17 +127,18 @@ fn compute_char_dynamic(
 
         // Combine all the commands
         let mut commands = move_commands;
-        commands.extend_from_slice(&end_commands);
+        //commands.extend_from_slice(&end_commands);
+        commands = commands + end_commands;
         options.push((commands, end_robot_states));
     }
     // Find the shortest path
     let (commands, new_robot_states) = options
         .into_iter()
-        .min_by_key(|(commands, _)| commands.len())
+        .min_by_key(|(commands, _)| *commands)
         .expect("No path found");
 
     // This is our answer
-    cache.put(key, (commands.clone(), new_robot_states.clone()));
+    cache.put(key, (commands, new_robot_states.clone()));
 
     (commands, new_robot_states)
 }
@@ -358,11 +361,11 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
         println!("code {}", code);
         {
             let sequence = compute_code_dynamic(code, &robot_states, &keypads, &mut cache);
-            let sequence = sequence.into_iter().collect::<String>();
+            // let sequence = sequence.into_iter().collect::<String>();
             println!("compute_path path {}", sequence);
             let num = code[..code.len() - 1].parse::<usize>()?;
-            sum += num * sequence.len();
-            println!("{} * {}", num, sequence.len());
+            sum += num * sequence; //j.len();
+            println!("{} * {}", num, sequence); //.len());
         }
     }
     //     continue;
@@ -420,11 +423,11 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         println!("code {}", code);
         {
             let sequence = compute_code_dynamic(code, &robot_states, &keypads, &mut cache);
-            let sequence = sequence.into_iter().collect::<String>();
+            //            let sequence = sequence.into_iter().collect::<String>();
             println!("compute_path path {}", sequence);
             let num = code[..code.len() - 1].parse::<usize>()?;
-            sum += num * sequence.len();
-            println!("{} * {}", num, sequence.len());
+            sum += num * sequence; //.len();
+            println!("{} * {}", num, sequence); //.len());
         }
     }
     Ok(sum)
