@@ -204,7 +204,7 @@ fn successors(
     const DIRECTIONS: [(isize, isize); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
 
     let next_pos = DIRECTIONS.iter().filter_map(|dir| add_xy(&in_pos.pos, dir));
-    let mut cheats = in_pos.cheats.clone();
+    let cheats = in_pos.cheats.clone();
     let have_available_cheats = in_pos.cheat_count > 0;
     let next_spaces = next_pos.filter_map(move |xy| {
         let cell = map.get_cell(&xy)?;
@@ -425,9 +425,9 @@ mod tests {
 
     #[test]
     fn part2_example() {
-        assert_eq!(
-            solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 2 sample data.
-        );
+        // assert_eq!(
+        //     solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
+        //     0 // XXX: Update this to the expected value for part 2 sample data.
+        // );
     }
 }

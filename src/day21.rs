@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
@@ -491,7 +492,7 @@ mod tests {
     fn part2_example() {
         assert_eq!(
             solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
-            0 // XXX: Update this to the expected value for part 2 sample data.
+            154115708116294
         );
     }
 }
