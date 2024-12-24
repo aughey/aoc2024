@@ -5,7 +5,6 @@ use itertools::Itertools as _;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     fmt::Display,
-    hash::Hash,
 };
 
 pub const DAY: u32 = 23;

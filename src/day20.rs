@@ -4,8 +4,10 @@ use crate::Position;
 use crate::{parse_grid, Result};
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
+use itertools::Itertools;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator as _;
+use std::collections::HashMap;
 use std::fmt::Display;
 
 pub const DAY: u32 = 20;
@@ -29,12 +31,7 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
         .context("no start cell found")?;
 
     let shortest_path = pathfinding::directed::dijkstra::dijkstra(
-        &XYMeta {
-            pos: start,
-            depth: 0,
-            cheats: vec![],
-            cheat_count: 0,
-        },
+        &XYMeta::new(start, 0),
         |p| successors(p, map, None).map(|xy| (xy, 1)),
         |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
     )
@@ -44,12 +41,7 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     println!("Shortest path length: {}", shortest_path_len);
 
     let shortest_path_with_cheat = pathfinding::directed::dijkstra::dijkstra(
-        &XYMeta {
-            depth: 0,
-            pos: start,
-            cheat_count: 1,
-            cheats: vec![],
-        },
+        &XYMeta::new(start, 1),
         |p| successors(p, map, None).map(|xy| (xy, 1)),
         |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
     )
@@ -121,30 +113,43 @@ fn solve_part1_impl(input: &Data) -> Result<usize> {
     Ok(count)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, Clone)]
 struct XYMeta {
+    cheat_active: bool,
     pos: Position,
     cheat_count: usize,
     depth: usize,
-    cheats: Vec<Position>,
+    cheat_path: Vec<Position>,
+}
+impl XYMeta {
+    fn new(pos: Position, cheat_count: usize) -> Self {
+        Self {
+            pos,
+            cheat_count,
+            cheat_active: false,
+            depth: 0,
+            cheat_path: vec![],
+        }
+    }
 }
 impl AsRef<Position> for XYMeta {
     fn as_ref(&self) -> &Position {
         &self.pos
     }
 }
-
-impl Eq for XYMeta {}
 impl PartialEq for XYMeta {
     fn eq(&self, other: &Self) -> bool {
-        self.pos == other.pos
-        //            && self.cheat_count == other.cheat_count
-          && self.cheats == other.cheats
+        self.pos == other.pos && self.cheat_path == other.cheat_path
+        // && self.cheat_active == other.cheat_active
+        // && self.cheat_count == other.cheat_count
     }
 }
 impl std::hash::Hash for XYMeta {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.pos.hash(state);
+        self.cheat_path.hash(state);
+        // self.cheat_active.hash(state);
+        // self.cheat_count.hash(state);
     }
 }
 
@@ -204,8 +209,9 @@ fn successors(
     const DIRECTIONS: [(isize, isize); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
 
     let next_pos = DIRECTIONS.iter().filter_map(|dir| add_xy(&in_pos.pos, dir));
-    let cheats = in_pos.cheats.clone();
+
     let have_available_cheats = in_pos.cheat_count > 0;
+
     let next_spaces = next_pos.filter_map(move |xy| {
         let cell = map.get_cell(&xy)?;
         match (cell, have_available_cheats) {
@@ -217,17 +223,18 @@ fn successors(
     let meta = next_spaces.map(|(p, is_cheat)| XYMeta {
         pos: p,
         depth: in_pos.depth + 1,
-        cheats: if is_cheat {
-            let mut new_cheats = cheats.clone();
-            new_cheats.push(p);
-            new_cheats
-        } else {
-            cheats.clone()
+        cheat_count: match (is_cheat, in_pos.cheat_active) {
+            (true, _) => in_pos.cheat_count - 1,
+            (false, true) => 0,
+            (false, false) => in_pos.cheat_count,
         },
-        cheat_count: if is_cheat {
-            in_pos.cheat_count - 1
+        cheat_active: is_cheat,
+        cheat_path: if is_cheat {
+            let mut cp = in_pos.cheat_path.clone();
+            cp.push(p.clone());
+            cp
         } else {
-            in_pos.cheat_count
+            in_pos.cheat_path.clone()
         },
     });
 
@@ -278,76 +285,77 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         .next()
         .context("no start cell found")?;
 
+    println!("Start: {:?}", start);
+
     let shortest_path = pathfinding::directed::dijkstra::dijkstra(
-        &XYMeta {
-            pos: start,
-            cheat_count: 0,
-            depth: 0,
-            cheats: vec![],
-        },
+        &XYMeta::new(start, 0),
         |p| successors(p, map, None).map(|xy| (xy, 1)),
         |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
     )
     .ok_or_else(|| anyhow::anyhow!("no path found"))?;
 
-    let shortest_path_len = shortest_path.0.len() - 1;
+    let shortest_path_len = shortest_path.0.len();
     println!("Shortest path length: {}", shortest_path.0.len() - 1);
 
-    let shortest_path_with_cheats = pathfinding::directed::dijkstra::dijkstra(
-        &XYMeta {
-            pos: start,
-            cheat_count: 1,
-            depth: 0,
-            cheats: vec![],
-        },
-        |p| successors(p, map, None).map(|xy| (xy, 1)),
-        |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
-    )
-    .ok_or_else(|| anyhow::anyhow!("no path found cheats"))?;
-    println!(
-        "Shortest path length with cheats: {}",
-        shortest_path_with_cheats.0.len() - 1
-    );
+    let shortest_path = shortest_path
+        .0
+        .into_iter()
+        .map(|p| p.pos)
+        .collect::<Vec<_>>();
 
-    for save in (1..=64).rev() {
-        let max_path_len = shortest_path_len - save;
-        println!("Checking max_path_len: {}", max_path_len);
+    const CHEAT_DISTANCE: usize = 20;
 
-        let astar = pathfinding::directed::astar::astar_bag(
-            &XYMeta {
-                pos: start,
-                cheat_count: 1,
-                depth: 0,
-                cheats: vec![],
-            },
-            |p| {
-                successors(p, map, Some(max_path_len))
-                    .filter(|s| {
-                        if map.get_cell(&s.pos).unwrap() == &Cell::End {
-                            if s.depth != max_path_len {
-                                return false;
-                            }
-                        }
-                        true
-                    })
-                    .map(|xy| (xy, 1usize))
-                    .collect::<Vec<_>>()
-            },
-            |_| 0,
-            |p| map.get_cell(&p.pos).unwrap() == &Cell::End,
-        );
-        if let Some(astar) = astar {
-            let astar_len = astar.0.into_iter().count();
-            println!(
-                "save: {save}, Astar solution count: {}, C: {}",
-                astar_len, astar.1
-            );
-        } else {
-            println!("save: {save}, Astar solution: None");
+    let nodes_within_cheat_distance = |xy: Position| {
+        shortest_path
+            .iter()
+            .enumerate()
+            // Make the enumeration index the distance to the end
+            .map(|(i, p)| (shortest_path_len - i - 1, p))
+            .filter_map(move |(dist_to_end, p)| {
+                let xydist = xy_distance(p, &xy);
+                if xydist <= CHEAT_DISTANCE {
+                    Some((dist_to_end, p, xydist))
+                } else {
+                    None
+                }
+            })
+    };
+
+    const SAVE_DISTANCE: usize = if cfg!(test) { 50 } else { 100 };
+
+    let mut save_count = HashMap::<usize, usize>::new();
+
+    for (cur_dist, n) in shortest_path.iter().enumerate() {
+        for (cheat_dist_to_end, _cheat_node, cheat_dist) in nodes_within_cheat_distance(*n) {
+            let total_dist = cur_dist + cheat_dist_to_end + cheat_dist;
+            // println!(
+            //     "From: {:?} to: {:?} total_dist: {}",
+            //     n, _cheat_node, total_dist
+            // );
+            if total_dist > shortest_path_len - 1 {
+                continue;
+            }
+            let save_dist = shortest_path_len - 1 - total_dist;
+            if save_dist >= SAVE_DISTANCE {
+                *save_count.entry(save_dist).or_insert(0) += 1;
+            }
         }
     }
+    let sorted = save_count
+        .iter()
+        .sorted_by_key(|(k, _v)| *k)
+        .collect::<Vec<_>>();
+    println!("Save count: {:?}", sorted);
 
-    Ok(1)
+    let total = save_count.values().sum::<usize>();
+
+    Ok(total)
+}
+
+fn xy_distance(a: &Position, b: &Position) -> usize {
+    let xdist = a.0.abs_diff(b.0);
+    let ydist = a.1.abs_diff(b.1);
+    xdist + ydist
 }
 
 /// Solution to part 1
@@ -425,9 +433,6 @@ mod tests {
 
     #[test]
     fn part2_example() {
-        // assert_eq!(
-        //     solve_part2(&test_data(super::DAY).unwrap()).unwrap(),
-        //     0 // XXX: Update this to the expected value for part 2 sample data.
-        // );
+        assert_eq!(solve_part2(&test_data(super::DAY).unwrap()).unwrap(), 285);
     }
 }
