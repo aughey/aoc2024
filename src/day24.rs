@@ -5,6 +5,7 @@ use itertools::Itertools as _;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
+    hash::Hash,
 };
 
 pub const DAY: u32 = 24;
@@ -88,14 +89,50 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
 
     let operations = sort_operations(start.as_slice(), input.operations.as_slice())?;
 
+    const VALID_BITS: u8 = 6;
+    let valid_endpoints = (0..VALID_BITS)
+        .map(|i| format!("z{:02}", i))
+        .collect::<HashSet<_>>();
+
+    // println!("op size before pruning: {}", operations.len());
+    // // Remove operations that do not end in a valid endpoint
+    // let operations = operations
+    //     .iter()
+    //     .filter(|&op| {
+    //         let mut decendents = pathfinding::directed::dfs::dfs_reach(op, |op| {
+    //             operations
+    //                 .iter()
+    //                 .filter(move |other| other.a == op.dest || other.b == op.dest)
+    //                 .collect::<Vec<_>>()
+    //         });
+    //         decendents.any(|op| valid_endpoints.contains(op.dest))
+    //     })
+    //     .cloned()
+    //     .collect::<Vec<_>>();
+
+    // println!("op size after pruning: {}", operations.len());
+
+    let decendents = pathfinding::directed::dfs::dfs_reach("x00", |wire| {
+        operations
+            .iter()
+            .filter(move |other| other.a == *wire || other.b == *wire)
+            .map(|op| op.dest)
+            .collect::<Vec<_>>()
+    })
+    .collect::<HashSet<_>>();
+    let x00ops = operations
+        .iter()
+        .filter(|op| decendents.contains(&op.dest))
+        .cloned();
+
     // // output operations as a mermaid graph
     // println!("graph TD;");
-    // for (i, op) in operations.iter().enumerate() {
-    //     println!("    {}({:?})", i, op.op);
-    //     println!("    {} --> {}", i, op.dest);
-    //     println!("    {} --> {}", op.a, i);
-    //     println!("    {} --> {}", op.b, i);
-    // }
+    for (i, op) in x00ops.enumerate() {
+        println!("    {}({:?})", i, op.op);
+        println!("    {} --> {}", i, op.dest);
+        println!("    {} --> {}", op.a, i);
+        println!("    {} --> {}", op.b, i);
+    }
 
     {
         // make sure all outputs are unique
@@ -208,7 +245,7 @@ fn solve_part2(input: &str) -> Result<usize> {
 
 type State<'a> = HashMap<&'a str, u8>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 enum Op {
     XOR,
     OR,
@@ -226,7 +263,7 @@ impl TryFrom<&str> for Op {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 struct Operation<'a> {
     op: Op,
     a: &'a str,
