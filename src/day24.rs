@@ -69,6 +69,42 @@ fn evaluate_z<'a>(
     Ok(result)
 }
 
+fn evaluate_z_multiple<'a>(
+    operations: &'a [Operation],
+    state: &mut State<'a>,
+    swaps: &[(&'a str, &'a str)],
+) -> Result<u64> {
+    evaluate_ops_multiple(operations, state, swaps)?;
+
+    let mut result = 0u64;
+    for i in 0..64 {
+        let z = format!("z{:02}", i);
+        if let Some(&value) = state.get(z.as_str()) {
+            result |= (value as u64) << i;
+        }
+    }
+    Ok(result)
+}
+
+fn evaluate_ops_multiple<'a>(
+    operations: &'a [Operation],
+    state: &mut State<'a>,
+    swaps: &[(&'a str, &'a str)],
+) -> Result<()> {
+    loop {
+        let mut keep_going = false;
+        for op in operations {
+            if op.try_op(state, swaps).is_none() {
+                keep_going = true;
+            }
+        }
+        if !keep_going {
+            break;
+        }
+    }
+    Ok(())
+}
+
 fn evaluate_ops<'a>(
     operations: &'a [Operation],
     state: &mut State<'a>,
@@ -126,6 +162,12 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
     //     .cloned();
 
     // // output operations as a graphviz
+    let wire_swaps: &[(&str, &str)] = &[
+        ("qbw", "z14"),
+        ("wcb", "z34"),
+        ("wjb", "cvp"),
+        ("mkk", "z10"),
+    ];
     {
         use std::io::Write;
         let mut dotfile = std::fs::File::create("/tmp/graph.dot")?;
@@ -137,7 +179,6 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             Op::XOR => "white", //"red",
         };
 
-        let wire_swaps: &[(&str, &str)] = &[("qbw", "z14"), ("wcb", "z34"), ("wjb", "cvp")];
         fn wire_value<'a>(wire: &'a str, wire_swaps: &[(&'a str, &'a str)]) -> &'a str {
             // if the wire is a swap wire, return the swapped value
             wire_swaps
@@ -171,7 +212,7 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             )?;
             writeln!(
                 dotfile,
-                "   y{:02}[label=\"y{:02}\" style=filled fillcolor=\"black\"]",
+                "   y{:02}[label=\"y{:02}\" style=filled fillcolor=\"orange\"]",
                 i, i
             )?;
         }
@@ -229,6 +270,23 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
             return Err(anyhow::anyhow!("invalid operation: {:?}", op));
         }
     }
+
+    fn num_as_bits(num: u64) -> String {
+        (0..64)
+            .map(|i| ((num >> i) & 1).to_string())
+            .collect::<Vec<_>>()
+            .join("")
+    }
+
+    let s = 2u64.pow(43) - 10;
+    (s..s + 20).for_each(|num| {
+        let mut state = input.start.clone();
+        set_bits(num, &mut state, "x");
+        set_bits(num, &mut state, "y");
+        let res = evaluate_z_multiple(operations.as_slice(), &mut state, wire_swaps).expect("ans");
+        println!("res: {}", num_as_bits(res));
+        println!("exp: {}", num_as_bits(num + num));
+    });
 
     todo!();
 
