@@ -112,27 +112,125 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
 
     // println!("op size after pruning: {}", operations.len());
 
-    let decendents = pathfinding::directed::dfs::dfs_reach("x00", |wire| {
-        operations
-            .iter()
-            .filter(move |other| other.a == *wire || other.b == *wire)
-            .map(|op| op.dest)
-            .collect::<Vec<_>>()
-    })
-    .collect::<HashSet<_>>();
-    let x00ops = operations
-        .iter()
-        .filter(|op| decendents.contains(&op.dest))
-        .cloned();
+    // let decendents = pathfinding::directed::dfs::dfs_reach("x00", |wire| {
+    //     operations
+    //         .iter()
+    //         .filter(move |other| other.a == *wire || other.b == *wire)
+    //         .map(|op| op.dest)
+    //         .collect::<Vec<_>>()
+    // })
+    // .collect::<HashSet<_>>();
+    // let x00ops = operations
+    //     .iter()
+    //     .filter(|op| decendents.contains(&op.dest))
+    //     .cloned();
 
-    // // output operations as a mermaid graph
-    // println!("graph TD;");
-    for (i, op) in x00ops.enumerate() {
-        println!("    {}({:?})", i, op.op);
-        println!("    {} --> {}", i, op.dest);
-        println!("    {} --> {}", op.a, i);
-        println!("    {} --> {}", op.b, i);
+    // // output operations as a graphviz
+    {
+        use std::io::Write;
+        let mut dotfile = std::fs::File::create("/tmp/graph.dot")?;
+        writeln!(dotfile, "digraph G {{")?;
+        // println!("graph TD;");
+        let color = |op: &Op| match op {
+            Op::AND => "green",
+            Op::OR => "white",
+            Op::XOR => "white", //"red",
+        };
+
+        let wire_swaps: &[(&str, &str)] = &[("qbw", "z14"), ("wcb", "z34"), ("wjb", "cvp")];
+        fn wire_value<'a>(wire: &'a str, wire_swaps: &[(&'a str, &'a str)]) -> &'a str {
+            // if the wire is a swap wire, return the swapped value
+            wire_swaps
+                .iter()
+                .copied()
+                .find_map(|(a, b)| {
+                    if wire == a {
+                        Some(b)
+                    } else if wire == b {
+                        Some(a)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(wire)
+        }
+
+        // Color all z wires yellow
+        for i in 0..=45 {
+            writeln!(
+                dotfile,
+                "   z{:02}[label=\"z{:02}\" style=filled fillcolor=\"yellow\"]",
+                i, i
+            )?;
+        }
+        for i in 0..=44 {
+            writeln!(
+                dotfile,
+                "   x{:02}[label=\"x{:02}\" style=filled fillcolor=\"brown\"]",
+                i, i
+            )?;
+            writeln!(
+                dotfile,
+                "   y{:02}[label=\"y{:02}\" style=filled fillcolor=\"black\"]",
+                i, i
+            )?;
+        }
+        for (i, op) in operations.iter().enumerate() {
+            writeln!(
+                dotfile,
+                "   {}[label=\"{:?}\" style=filled fillcolor=\"{}\"]",
+                i,
+                op.op,
+                color(&op.op)
+            )?;
+            let output = wire_value(op.dest, wire_swaps);
+            // Find the position of the operations that use this output
+            for dependent in operations.iter().enumerate().filter_map(|(j, op)| {
+                if op.a == output || op.b == output {
+                    Some(j)
+                } else {
+                    None
+                }
+            }) {
+                writeln!(dotfile, "    {} -> {} [label=\"{}\"]", i, dependent, output)?;
+            }
+            if output.starts_with("z") {
+                writeln!(dotfile, "    {} -> {} ", i, output)?;
+            }
+            if op.a.starts_with("x") || op.a.starts_with("y") {
+                writeln!(dotfile, "    {} -> {}", op.a, i)?;
+            }
+            if op.b.starts_with("x") || op.b.starts_with("y") {
+                writeln!(dotfile, "    {} -> {}", op.b, i)?;
+            }
+            //            writeln!(dotfile, "    {} -> {}", i, wire_value(op.dest, wire_swaps))?;
+
+            //writeln!(dotfile, "    {} -> {}", op.a, i)?;
+            //writeln!(dotfile, "    {} -> {}", op.b, i)?;
+        }
+        writeln!(dotfile, "}}")?;
     }
+
+    let ops_with_x_parents = operations
+        .iter()
+        .filter(|op| op.a.starts_with("x") || op.b.starts_with("x"));
+    // This must all be xor or and
+    for op in ops_with_x_parents {
+        if op.op != Op::XOR && op.op != Op::AND {
+            return Err(anyhow::anyhow!("invalid operation: {:?}", op));
+        }
+    }
+    let ops_with_y_parents = operations
+        .iter()
+        .filter(|op| op.a.starts_with("y") || op.b.starts_with("y"));
+    // This must all be xor or and
+    for op in ops_with_y_parents {
+        if op.op != Op::XOR && op.op != Op::AND {
+            return Err(anyhow::anyhow!("invalid operation: {:?}", op));
+        }
+    }
+
+    todo!();
 
     {
         // make sure all outputs are unique

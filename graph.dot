@@ -1,0 +1,146 @@
+digraph G {
+   0[label="tnw"]
+    y02 -> 0
+    x01 -> 0
+    0 -> tnw
+   1[label="nrd"]
+    y03 -> 1
+    x01 -> 1
+    1 -> nrd
+   2[label="ffh"]
+    x03 -> 2
+    y03 -> 2
+    2 -> ffh
+   3[label="bqk"]
+    ffh -> 3
+    nrd -> 3
+    3 -> bqk
+   4[label="vdt"]
+    x03 -> 4
+    x00 -> 4
+    4 -> vdt
+   5[label="hwm"]
+    nrd -> 5
+    vdt -> 5
+    5 -> hwm
+   6[label="z03"]
+    hwm -> 6
+    bqk -> 6
+    6 -> z03
+   7[label="psh"]
+    y03 -> 7
+    y00 -> 7
+    7 -> psh
+   8[label="djm"]
+    y00 -> 8
+    y03 -> 8
+    8 -> djm
+   9[label="fst"]
+    x00 -> 9
+    x03 -> 9
+    9 -> fst
+   10[label="frj"]
+    tnw -> 10
+    fst -> 10
+    10 -> frj
+   11[label="z07"]
+    bqk -> 11
+    frj -> 11
+    11 -> z07
+   12[label="z08"]
+    bqk -> 12
+    frj -> 12
+    12 -> z08
+   13[label="kjc"]
+    x04 -> 13
+    y00 -> 13
+    13 -> kjc
+   14[label="rvg"]
+    kjc -> 14
+    fst -> 14
+    14 -> rvg
+   15[label="bfw"]
+    vdt -> 15
+    tnw -> 15
+    15 -> bfw
+   16[label="z06"]
+    bfw -> 16
+    bqk -> 16
+    16 -> z06
+   17[label="z10"]
+    bfw -> 17
+    frj -> 17
+    17 -> z10
+   18[label="ntg"]
+    x00 -> 18
+    y04 -> 18
+    18 -> ntg
+   19[label="kwq"]
+    ntg -> 19
+    kjc -> 19
+    19 -> kwq
+   20[label="fgs"]
+    y04 -> 20
+    y02 -> 20
+    20 -> fgs
+   21[label="wpb"]
+    nrd -> 21
+    fgs -> 21
+    21 -> wpb
+   22[label="tgd"]
+    psh -> 22
+    fgs -> 22
+    22 -> tgd
+   23[label="z12"]
+    tgd -> 23
+    rvg -> 23
+    23 -> z12
+   24[label="z01"]
+    tgd -> 24
+    rvg -> 24
+    24 -> z01
+   25[label="mjb"]
+    ntg -> 25
+    fgs -> 25
+    25 -> mjb
+   26[label="z00"]
+    bfw -> 26
+    mjb -> 26
+    26 -> z00
+   27[label="pbm"]
+    y01 -> 27
+    x02 -> 27
+    27 -> pbm
+   28[label="gnj"]
+    tnw -> 28
+    pbm -> 28
+    28 -> gnj
+   29[label="z02"]
+    gnj -> 29
+    wpb -> 29
+    29 -> z02
+   30[label="z11"]
+    gnj -> 30
+    tgd -> 30
+    30 -> z11
+   31[label="kpj"]
+    pbm -> 31
+    djm -> 31
+    31 -> kpj
+   32[label="z05"]
+    kwq -> 32
+    kpj -> 32
+    32 -> z05
+   33[label="qhw"]
+    djm -> 33
+    pbm -> 33
+    33 -> qhw
+   34[label="z04"]
+    frj -> 34
+    qhw -> 34
+    34 -> z04
+   35[label="z09"]
+    qhw -> 35
+    tgd -> 35
+    35 -> z09
+}
