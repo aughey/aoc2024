@@ -119,16 +119,16 @@ fn evaluate_ops<'a>(
 }
 
 fn solve_part2_impl(input: &Data) -> Result<usize> {
-    let mut state = input.start.clone();
+    //    let state = input.start.clone();
 
     let start = input.start.keys().copied().collect::<Vec<_>>();
 
     let operations = sort_operations(start.as_slice(), input.operations.as_slice())?;
 
-    const VALID_BITS: u8 = 6;
-    let valid_endpoints = (0..VALID_BITS)
-        .map(|i| format!("z{:02}", i))
-        .collect::<HashSet<_>>();
+    //    const VALID_BITS: u8 = 6;
+    // let valid_endpoints = (0..VALID_BITS)
+    //     .map(|i| format!("z{:02}", i))
+    //     .collect::<HashSet<_>>();
 
     // println!("op size before pruning: {}", operations.len());
     // // Remove operations that do not end in a valid endpoint
@@ -288,90 +288,90 @@ fn solve_part2_impl(input: &Data) -> Result<usize> {
         println!("exp: {}", num_as_bits(num + num));
     });
 
-    todo!();
+    // todo!();
 
-    {
-        // make sure all outputs are unique
-        let op_outputs = operations.iter().map(|op| op.dest).collect::<HashSet<_>>();
-        assert_eq!(op_outputs.len(), operations.len());
-    }
+    // {
+    //     // make sure all outputs are unique
+    //     let op_outputs = operations.iter().map(|op| op.dest).collect::<HashSet<_>>();
+    //     assert_eq!(op_outputs.len(), operations.len());
+    // }
 
-    let outputs = operations.iter().map(|op| op.dest).collect::<Vec<_>>();
+    // let outputs = operations.iter().map(|op| op.dest).collect::<Vec<_>>();
 
-    // Make unique indicies of outputs
-    let first_indicies = (0..outputs.len()).flat_map(|ax| {
-        ((ax + 1)..outputs.len())
-            .filter(move |&bx| ax != bx)
-            .map(move |bx| (ax, bx))
-    });
-    fn pair_single_equality(&(a, b): &(usize, usize), other: usize) -> bool {
-        a == other || b == other
-    }
-    fn pair_pair_equality(&(a, b): &(usize, usize), &(c, d): &(usize, usize)) -> bool {
-        a == c || a == d || b == c || b == d
-    }
-    let second_indices = first_indicies.flat_map(|first| {
-        ((first.1 + 1)..outputs.len())
-            .filter(move |ax| !pair_single_equality(&first, *ax))
-            .flat_map(|ax| ((ax + 1)..outputs.len()).map(move |bx| (ax, bx)))
-            .filter(move |second| !pair_pair_equality(&first, second))
-            .map(move |second| (first, second))
-    });
-    let third_indicies = second_indices.flat_map(|(first, second)| {
-        ((second.1 + 1)..outputs.len())
-            .filter(move |ax| {
-                !pair_single_equality(&first, *ax) && !pair_single_equality(&second, *ax)
-            })
-            .flat_map(|ax| ((ax + 1)..outputs.len()).map(move |bx| (ax, bx)))
-            .filter(move |third| {
-                !pair_pair_equality(&first, third) && !pair_pair_equality(&second, third)
-            })
-            .map(move |third| (first, second, third))
-    });
-    let fourth_indices = third_indicies.flat_map(|(first, second, third)| {
-        ((third.1 + 1)..outputs.len())
-            .filter(move |ax| {
-                !pair_single_equality(&first, *ax)
-                    && !pair_single_equality(&second, *ax)
-                    && !pair_single_equality(&third, *ax)
-            })
-            .flat_map(|ax| ((ax + 1)..outputs.len()).map(move |bx| (ax, bx)))
-            .filter(move |fourth| {
-                !pair_pair_equality(&first, fourth)
-                    && !pair_pair_equality(&second, fourth)
-                    && !pair_pair_equality(&third, fourth)
-            })
-            .map(move |fourth| (first, second, third, fourth))
-    });
+    // // Make unique indicies of outputs
+    // let first_indicies = (0..outputs.len()).flat_map(|ax| {
+    //     ((ax + 1)..outputs.len())
+    //         .filter(move |&bx| ax != bx)
+    //         .map(move |bx| (ax, bx))
+    // });
+    // fn pair_single_equality(&(a, b): &(usize, usize), other: usize) -> bool {
+    //     a == other || b == other
+    // }
+    // fn pair_pair_equality(&(a, b): &(usize, usize), &(c, d): &(usize, usize)) -> bool {
+    //     a == c || a == d || b == c || b == d
+    // }
+    // let second_indices = first_indicies.flat_map(|first| {
+    //     ((first.1 + 1)..outputs.len())
+    //         .filter(move |ax| !pair_single_equality(&first, *ax))
+    //         .flat_map(|ax| ((ax + 1)..outputs.len()).map(move |bx| (ax, bx)))
+    //         .filter(move |second| !pair_pair_equality(&first, second))
+    //         .map(move |second| (first, second))
+    // });
+    // let third_indicies = second_indices.flat_map(|(first, second)| {
+    //     ((second.1 + 1)..outputs.len())
+    //         .filter(move |ax| {
+    //             !pair_single_equality(&first, *ax) && !pair_single_equality(&second, *ax)
+    //         })
+    //         .flat_map(|ax| ((ax + 1)..outputs.len()).map(move |bx| (ax, bx)))
+    //         .filter(move |third| {
+    //             !pair_pair_equality(&first, third) && !pair_pair_equality(&second, third)
+    //         })
+    //         .map(move |third| (first, second, third))
+    // });
+    // let fourth_indices = third_indicies.flat_map(|(first, second, third)| {
+    //     ((third.1 + 1)..outputs.len())
+    //         .filter(move |ax| {
+    //             !pair_single_equality(&first, *ax)
+    //                 && !pair_single_equality(&second, *ax)
+    //                 && !pair_single_equality(&third, *ax)
+    //         })
+    //         .flat_map(|ax| ((ax + 1)..outputs.len()).map(move |bx| (ax, bx)))
+    //         .filter(move |fourth| {
+    //             !pair_pair_equality(&first, fourth)
+    //                 && !pair_pair_equality(&second, fourth)
+    //                 && !pair_pair_equality(&third, fourth)
+    //         })
+    //         .map(move |fourth| (first, second, third, fourth))
+    // });
 
-    println!(
-        "number of wierd indicies things we have about is {}",
-        fourth_indices.clone().count()
-    );
-    println!(
-        "First sequences are: {:?}",
-        fourth_indices.take(5).collect::<Vec<_>>()
-    );
+    // println!(
+    //     "number of wierd indicies things we have about is {}",
+    //     fourth_indices.clone().count()
+    // );
+    // println!(
+    //     "First sequences are: {:?}",
+    //     fourth_indices.take(5).collect::<Vec<_>>()
+    // );
 
-    let output_pairs = outputs
-        .into_iter()
-        .combinations(2)
-        .map(|pair| (pair[0], pair[1]))
-        .collect::<Vec<_>>();
+    // let output_pairs = outputs
+    //     .into_iter()
+    //     .combinations(2)
+    //     .map(|pair| (pair[0], pair[1]))
+    //     .collect::<Vec<_>>();
 
-    println!("number of output pairs: {}", output_pairs.len());
+    // println!("number of output pairs: {}", output_pairs.len());
 
-    // Now all combinations of 4 of these output pairs
-    set_bits(5, &mut state, "x");
-    set_bits(6, &mut state, "y");
-    const EXPECTED: usize = 11;
-    for swap_combo in output_pairs.into_iter().combinations(4) {
-        let res = evaluate_z(operations.as_slice(), &mut state, swap_combo.as_slice())?;
-        if res == EXPECTED {
-            println!("found solution: {:?}", swap_combo);
-            break;
-        }
-    }
+    // // Now all combinations of 4 of these output pairs
+    // set_bits(5, &mut state, "x");
+    // set_bits(6, &mut state, "y");
+    // const EXPECTED: usize = 11;
+    // for swap_combo in output_pairs.into_iter().combinations(4) {
+    //     let res = evaluate_z(operations.as_slice(), &mut state, swap_combo.as_slice())?;
+    //     if res == EXPECTED {
+    //         println!("found solution: {:?}", swap_combo);
+    //         break;
+    //     }
+    // }
     Ok(0)
 }
 
