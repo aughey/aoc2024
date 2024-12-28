@@ -1,7 +1,6 @@
 use crate::Result;
 use anyhow::Context as _;
 use aoc_runner_derive::aoc;
-use itertools::Itertools as _;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
